@@ -12,7 +12,7 @@
 #include <thread>
 using namespace std;
 
-#define PORT 2060               // 2 + Student ID
+#define PORT 53
 #define MAX_FRAME_LENGTH 4096   // Size in bytes per frame
 #define FILENAME_SIZE 256       // File names greater than this are not allowed
 #define WINDOW_SIZE 12          // Number of frames in the window

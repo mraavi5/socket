@@ -13,7 +13,7 @@
 #include <unistd.h>
 using namespace std;
 
-#define PORT 2060               // 2 + Student ID
+#define PORT 53
 #define MAX_FRAME_LENGTH 4096   // Size in bytes per frame
 #define FILENAME_SIZE 256       // File names greater than this are not allowed
 #define FRAME_TIMEOUT 100       // Milliseconds to wait until re-sending frame
@@ -79,7 +79,7 @@ void receiveFileName(char (&fileName)[FILENAME_SIZE]) {
     while(fileNameLen <= 0) {
         fileNameLen = recvfrom(sock, (char*) fileNameRaw, FILENAME_SIZE, MSG_WAITALL, (struct sockaddr *) &client, &clientLength);
     }
-    cout << "Copying first " << fileNameLen << " byes of \"" << fileNameRaw << "\" into the file name array..." << endl;
+    cout << "Copying first " << fileNameLen << " bytes of \"" << fileNameRaw << "\" into the file name array..." << endl;
     strncpy(fileName, fileNameRaw, fileNameLen);
     fileName[fileNameLen] = '\0';
     char ack[1] = {'K'};

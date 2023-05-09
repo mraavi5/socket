@@ -1,1 +1,0 @@
-python3 tcpdump_logger.py $1
