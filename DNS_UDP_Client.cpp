@@ -14,7 +14,7 @@ using namespace std;
 
 #define PORT 5300
 #define MAX_FRAME_LENGTH 1232   // Size in bytes per frame
-#define FILENAME_SIZE 256       // File names greater than this are not allowed
+#define DOMAIN_NAME_SIZE 256    // Domains greater than this are not allowed
 #define WINDOW_SIZE 12          // Number of frames in the window
 
 // Socket descriptor
@@ -57,18 +57,17 @@ char computeCrcChecksum(char *buf, int len) {
 
 
 
-// Client side needs: UDP_Client serverHostname fileName protocolType
+// Client side needs: ServerIP DomainName ProtocolType
 int main(int argc, char *argv[]) {
-    if (argc != 4) fatal("Usage: \"UDP_Client serverHostname fileName protocolType\"");
-    char *serverHostname = argv[1];
-    char fileName[FILENAME_SIZE] = { 0 };
+    if (argc != 4) fatal("Usage: \"DNS_UDP_Client ServerIP DomainName ProtocolType\"");
+    char *serverIP = argv[1];
+    char domainName[DOMAIN_NAME_SIZE] = {0};
+    memcpy(domainName, argv[2], DOMAIN_NAME_SIZE);
 
-    memcpy(fileName, argv[2], FILENAME_SIZE);
-    int fileNameLen = std::min((int) strlen(argv[2]), FILENAME_SIZE);
+    int domainNameLen = std::min((int) strlen(argv[2]), DOMAIN_NAME_SIZE);
 
-    //char* fileName = argv[2];
+    //char* domainName = argv[2];
     int protocolType = stoi(argv[3]);
-
 
     if(protocolType == 1) {
         cout << endl;
@@ -88,8 +87,8 @@ int main(int argc, char *argv[]) {
 
 
     cout << endl;
-    cout << "Server hostname: " << serverHostname << endl;
-    cout << "File name to request: " << fileName << endl;
+    cout << "Server hostname: " << serverIP << endl;
+    cout << "File name to request: " << domainName << endl;
     cout << "Protocol type: " << protocolType << endl;
 
     maxBufferSize = MAX_FRAME_LENGTH * WINDOW_SIZE;
@@ -109,7 +108,7 @@ int main(int argc, char *argv[]) {
 
     // Convert the hostname, windom.uccs.edu, into an address
     struct hostent * hp;
-    hp = gethostbyname(serverHostname);
+    hp = gethostbyname(serverIP);
     if (hp == NULL) {
         fatal("Unable to get srver IP address");
     }
@@ -117,13 +116,13 @@ int main(int argc, char *argv[]) {
 
     cout << "Socket connected!" << endl;
 
-    FILE *file = fopen(fileName, "wb");
+    FILE *file = fopen(domainName, "wb");
     char buffer[maxBufferSize];
     int bufferSize;
 
     bool frameError;                    // True when frame has error due to checksum
     char ack[2];                        // Storage location for crafting ACKs
-    char data[MAX_FRAME_LENGTH];        // Stores the file contents ready to be sent
+    char data[MAX_FRAME_LENGTH];        // Stores the contents ready to be sent
     char frame[MAX_FRAME_LENGTH + 10];  // Stores the frame header + data + 10 bytes for checksum
     int dataSize, frameSize, seqNumCounter, windowMinIndex, windowMaxIndex;
     bool endOfTransmission, isReceiving = true;
@@ -140,12 +139,12 @@ int main(int argc, char *argv[]) {
 
 
         // Send the file's name
-        cout << "Sending file name..." << endl;
+        cout << "Sending domain name..." << endl;
         bool receivedFileName = false;
         char ack[2];
         while(!receivedFileName) {
             serverLength = sizeof(server);
-            if (sendto(sock, fileName, fileNameLen, 0, (struct sockaddr *) &server, serverLength) <= 0) {
+            if (sendto(sock, domainName, domainNameLen, 0, (struct sockaddr *) &server, serverLength) <= 0) {
                 fatal("Failed to send");
             }
             int ackSize = recvfrom(sock, (char*) ack, 2, MSG_WAITALL, (struct sockaddr *) &client, &clientLength);
@@ -170,6 +169,7 @@ int main(int argc, char *argv[]) {
      *  ARQ Stop-and-Wait
      */
     if(protocolType == 1) {
+        std::string response;  // This string will store the data received
         int bytesReceived = 0;
         while (isReceiving) {
             cout << "Listening for frame..." << endl;
@@ -178,8 +178,8 @@ int main(int argc, char *argv[]) {
             if(!frameError) {
                 bytesReceived += frameSize;
 
-                // Write the serialized frame data portion to file if the checksum hash matches
-                fwrite(data, 1, dataSize, file);
+                // Append the data to the response string
+                response.append(data, dataSize);
                 bufferNum += 1;
 
                 // frameError is always false, therefore no NACKs exist
@@ -190,12 +190,12 @@ int main(int argc, char *argv[]) {
 
                 if(endOfTransmission) isReceiving = false;
             }
-
         }
-        // cout << bytesReceived << " bytes received!" << endl;
-        fclose(file);
 
-        // Now, we want to make sure that the server is certain that we're done, just in case the EOT message was not correupt
+        // Print the received response
+        std::cout << "Received response: " << response << std::endl;
+
+        // Now, we want to make sure that the server is certain that we're done, just in case the EOT message was not correct
         // So continue sending ACKs for 1 second, then we can end
         thread finalAckSenderThread(asyncListenForAcksThenRespond);
         chrono::high_resolution_clock::time_point start_time = chrono::high_resolution_clock::now();
@@ -208,10 +208,12 @@ int main(int argc, char *argv[]) {
 
 
 
+
     /*
      *  ARQ Selective Repeat
      */
     } else if(protocolType == 2) {
+        std::string response; // This string will store the data received
         while (isReceiving) {
             bufferSize = maxBufferSize;
             memset(buffer, 0, bufferSize);
@@ -302,13 +304,13 @@ int main(int argc, char *argv[]) {
                 /*Move to next buffer if all frames in current buffer has been received */
                 if (windowMinIndex >= receivedSeqCount - 1) break;
             }
-            // cout << bufferNum * maxBufferSize + bufferSize << " bytes received!" << endl;
-
-            // Write the serialized frame data from buffer to file
-            fwrite(buffer, 1, bufferSize, file);
+            // Append the serialized frame data from buffer to response string
+            response.append(buffer, bufferSize);
             bufferNum += 1;
         }
-        fclose(file);
+
+        // Print the received response
+        std::cout << "Received response: " << response << std::endl;
 
         // Now, we want to make sure that the server is certain that we're done, just in case the EOT message was not correupt
         // So continue sending ACKs for 1 second, then we can end
@@ -320,7 +322,7 @@ int main(int argc, char *argv[]) {
         finalAckSenderThread.detach();
     }
 
-    cout << "\nTransmission complete: Received \"" << fileName << "\"\n" << endl;
+    cout << "\nTransmission complete: Received \"" << domainName << "\"\n" << endl;
     return 0;
 }
 
