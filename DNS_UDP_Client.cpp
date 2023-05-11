@@ -88,7 +88,7 @@ int main(int argc, char *argv[]) {
 
     cout << endl;
     cout << "Server hostname: " << serverIP << endl;
-    cout << "File name to request: " << domainName << endl;
+    cout << "Domain name to request: " << domainName << endl;
     cout << "Protocol type: " << protocolType << endl;
 
     maxBufferSize = MAX_FRAME_LENGTH * WINDOW_SIZE;
@@ -116,7 +116,6 @@ int main(int argc, char *argv[]) {
 
     cout << "Socket connected!" << endl;
 
-    FILE *file = fopen(domainName, "wb");
     char buffer[maxBufferSize];
     int bufferSize;
 
@@ -138,11 +137,11 @@ int main(int argc, char *argv[]) {
         setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&readTimeout, sizeof readTimeout);
 
 
-        // Send the file's name
+        // Send the domain's name
         cout << "Sending domain name..." << endl;
-        bool receivedFileName = false;
+        bool receivedDomainName = false;
         char ack[2];
-        while(!receivedFileName) {
+        while(!receivedDomainName) {
             serverLength = sizeof(server);
             if (sendto(sock, domainName, domainNameLen, 0, (struct sockaddr *) &server, serverLength) <= 0) {
                 fatal("Failed to send");
@@ -150,8 +149,8 @@ int main(int argc, char *argv[]) {
             int ackSize = recvfrom(sock, (char*) ack, 2, MSG_WAITALL, (struct sockaddr *) &client, &clientLength);
             if(ackSize <= 0) continue;
             cout << "Received " << ackSize << " bytes, " << ack[0] << ack[1] << endl;
-            if(ack[0] == 'K') receivedFileName = true;
-            else fatal("404, file not found.");
+            if(ack[0] == 'K') receivedDomainName = true;
+            else fatal("404, domain not found.");
         }
 
         // Set the recvfrom to not terminate, undos the 100ms timeout
