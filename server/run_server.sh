@@ -17,4 +17,4 @@ g++ -std=c++11 DNS_UDP_Server.cpp -o DNS_UDP_Server -lpthread -lssl -lcrypto
 
 
 # DNS_UDP_Server loss_probability protocol_type
-while true; do ./DNS_UDP_Server 0 2; done
+while true; do ./DNS_UDP_Server 0 1; done

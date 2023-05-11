@@ -77,7 +77,7 @@ string extractDomain(const string& url) {
 	if (regex_search(url, matches, pattern) && matches.size() > 2) {
 		return matches.str(2);
 	} else {
-		return string();
+		return url;
 	}
 }
 
@@ -224,7 +224,7 @@ int main(int argc, char *argv[]) {
 			cout << "Received domain name for reading: \"" << domainName << "\"" << endl;
 
 			string query = extractDomain(domainName);
-			string response = trim(terminal("./redis_researcher/run_read.sh " + query));
+			string response = trim(terminal("cd redis_researcher; ./run_read.sh " + query));
 
 			if (response.length() == 0) {
 				cout << "Error 404, domain not found" << endl;
@@ -319,7 +319,7 @@ int main(int argc, char *argv[]) {
             cout << "Received domain name for reading: \"" << domainName << "\"" << endl;
 
             string query = extractDomain(domainName);
-            string response = trim(terminal("./redis_researcher/run_read.sh " + query));
+            string response = trim(terminal("cd redis_researcher; ./run_read.sh " + query));
 
             if (response.length() == 0) {
                 cout << "Error 404, domain not found" << endl;
