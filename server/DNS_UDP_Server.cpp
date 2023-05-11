@@ -13,8 +13,8 @@
 #include <unistd.h>
 using namespace std;
 
-#define PORT 53
-#define MAX_FRAME_LENGTH 4096   // Size in bytes per frame
+#define PORT 5300
+#define MAX_FRAME_LENGTH 1232   // Size in bytes per frame
 #define FILENAME_SIZE 256       // File names greater than this are not allowed
 #define FRAME_TIMEOUT 100       // Milliseconds to wait until re-sending frame
 #define WINDOW_SIZE 12          // Number of frames in the window

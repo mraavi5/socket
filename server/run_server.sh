@@ -1,3 +1,10 @@
+if [ ! -f redis_researcher/src/redis-server ]; then
+	echo "Redis binary not found, compiling..."
+	cd redis_researcher
+	./compile.sh
+	cd ..
+fi
+
 rm -rf DNS_UDP_Server
 g++ -std=c++11 DNS_UDP_Server.cpp -o DNS_UDP_Server -lpthread
 

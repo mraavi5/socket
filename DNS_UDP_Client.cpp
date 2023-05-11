@@ -12,8 +12,8 @@
 #include <thread>
 using namespace std;
 
-#define PORT 53
-#define MAX_FRAME_LENGTH 4096   // Size in bytes per frame
+#define PORT 5300
+#define MAX_FRAME_LENGTH 1232   // Size in bytes per frame
 #define FILENAME_SIZE 256       // File names greater than this are not allowed
 #define WINDOW_SIZE 12          // Number of frames in the window
 
@@ -76,16 +76,12 @@ int main(int argc, char *argv[]) {
         cout << "==================================================" << endl;
         cout << "=====            ARQ STOP-AND-WAIT           =====" << endl;
         cout << "==================================================" << endl;
-        cout << "=====            by Simeon Wuthier           =====" << endl;
-        cout << "==================================================" << endl;
         cout << endl;
     } else if(protocolType == 2) {
         cout << endl;
         cout << endl;
         cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" << endl;
         cout << "@@@@@          ARQ SELECTIVE REPEAT          @@@@@" << endl;
-        cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" << endl;
-        cout << "@@@@@            by Simeon Wuthier           @@@@@" << endl;
         cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" << endl;
         cout << endl;
     }
