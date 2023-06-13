@@ -1,0 +1,16 @@
+# Ignore these specific files
+client
+server
+database_filler
+privkey.key
+pubkey.key
+
+# Ignore object and library files
+*.o
+*.a
+
+# Ignore log files
+*.log
+
+# Ignore all temporary files
+*~

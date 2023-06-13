@@ -3,21 +3,21 @@
 // Solution, paste this:
 //      export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
 
-#include <iostream>
-#include <string>
 #include <fstream>
-#include <vector>
-#include <regex>
-#include <sw/redis++/redis++.h>
-#include <oqs/oqs.h>
-#include <openssl/evp.h>
-#include <sstream>
 #include <iomanip>
+#include <iostream>
+#include <openssl/evp.h>
+#include <oqs/oqs.h>
+#include <regex>
+#include <sstream>
+#include <string>
+#include <sw/redis++/redis++.h>
+#include <vector>
 
+const bool UseCRC = true;          // Control flag for using CRC
 const size_t MaxFrameSize = 1232;  // Max frame size in bytes
 const size_t ChecksumSize = 8;     // Checksum size in bytes
-const bool USE_CRC = false;        // Control flag for using CRC
-const size_t FragmentSize = USE_CRC ? MaxFrameSize - ChecksumSize : MaxFrameSize;
+const size_t FragmentSize = UseCRC ? MaxFrameSize - ChecksumSize : MaxFrameSize;
 
 // Function to extract base domain from a given URL
 std::string get_base_domain(const std::string& domain) {
@@ -40,39 +40,47 @@ std::string sign_message(const std::string& message, OQS_SIG* signer, const uint
     return std::string(signature.begin(), signature.begin() + signature_len);
 }
 
-// Function to calculate SHA256 hash of given data
+// // Function to verify a message
+// bool verify_message(const std::string& message, OQS_SIG* signer, std::string signature, std::string public_key) {
+//     std::cout << "Verifying " << message << std::endl;
+//     std::vector<uint8_t> signature_vec(signature.begin(), signature.end());
+//     std::vector<uint8_t> public_key_vec(public_key.begin(), public_key.end());
+//     // Verify the signature
+//     OQS_STATUS status = OQS_SIG_verify(signer, reinterpret_cast<const uint8_t*>(message.data()), message.size(), signature_vec.data(), signature_vec.size(), public_key_vec.data());
+//     if (status == OQS_SUCCESS) {
+//         return true;
+//     } else {
+//         return false;
+//     }
+// }
+
+// Function to calculate SHA256 hash of given data, string length=32
 std::string sha256(const std::string& data) {
     unsigned char hash[EVP_MAX_MD_SIZE];
     unsigned int hash_len;
     EVP_MD_CTX* ctx = EVP_MD_CTX_new();
-
     EVP_DigestInit_ex(ctx, EVP_sha256(), NULL);
     EVP_DigestUpdate(ctx, data.data(), data.size());
     EVP_DigestFinal_ex(ctx, hash, &hash_len);
     EVP_MD_CTX_free(ctx);
-
-    std::ostringstream hashed_ss;
-    hashed_ss << std::hex << std::setfill('0');
+    std::string hashed_str;
+    hashed_str.reserve(hash_len);
     for (int i = 0; i < hash_len; i++) {
-        hashed_ss << std::setw(2) << static_cast<unsigned>(hash[i]);
+        hashed_str.push_back(static_cast<char>(hash[i]));
     }
-
-    return hashed_ss.str();
+    assert(hashed_str.length() == 32);
+    return hashed_str;
 }
 
-// Function to compute the SHA-256 hash of a string
-// std::string sha256(const std::string& str) {
-//     unsigned char hash[SHA256_DIGEST_LENGTH];
-//     SHA256_CTX sha256;
-//     SHA256_Init(&sha256);
-//     SHA256_Update(&sha256, str.c_str(), str.size());
-//     SHA256_Final(hash, &sha256);
-//     std::stringstream ss;
-//     for(int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
-//         ss << std::hex << std::setw(2) << std::setfill('0') << (int)hash[i];
-//     }
-//     return ss.str();
-// }
+// Function to convert a 32-byte string to a 64-byte hexadecimal string
+std::string to_hex_string(const std::string& data) {
+    std::ostringstream ss;
+    ss << std::hex << std::setfill('0');
+    for (char c : data) {
+        ss << std::setw(2) << static_cast<unsigned>(static_cast<unsigned char>(c));
+    }
+    return ss.str();
+}
 
 // Function to write data to Redis
 void write_to_redis(const std::string& domain, int index, const std::string& data) {
@@ -135,6 +143,7 @@ int main(int argc, char* argv[]) {
     private_file.close();
 
 
+    // Write to redis
     sw::redis::Redis redis("tcp://127.0.0.1:6379");
     redis.set("ALGORITHM_USED", algorithm);
     redis.set("PUBLIC_KEY", std::string(reinterpret_cast<char*>(public_key), signer->length_public_key));
@@ -155,26 +164,61 @@ int main(int argc, char* argv[]) {
 
         domain = get_base_domain(domain);
 
-        std::string message = domain + ip;
+        std::string message = domain + "," + ip;
         std::string signature = sign_message(message, signer, secret_key);
+
+        //std::string public_key_str(reinterpret_cast<char*>(public_key), signer->length_public_key);
+        // Read the public key from file
+        // std::ifstream pub_file("pubkey.key");
+        // if (!pub_file.is_open()) {
+        //     std::cerr << "Failed to open pubkey.key\n";
+        //     return 1;
+        // }
+        // std::string pubkey((std::istreambuf_iterator<char>(pub_file)), std::istreambuf_iterator<char>());
+        //assert(verify_message(message, signer, signature, pubkey));
+
         if(domain == "google.com") {
-            std::cout << "!!!!!" << signature << "!!!!!\n";
+            std::cout << "SIGNATURE HASH " << to_hex_string(sha256(signature)) << std::endl;
+            //std::cout << "!!!!!" << signature << "!!!!!\n";
         }
         std::string buffer = domain + "," + ip + "," + signature;
 
+        std::string totalHash = "";
+        int totalNumHashes = 0;
         std::vector<std::string> hashes;
         for (size_t i = 0; i < buffer.size(); i += FragmentSize) {
-            std::string fragment = buffer.substr(i, FragmentSize);
-            hashes.push_back(sha256(fragment));
+            std::string hash = sha256(buffer.substr(i, FragmentSize));
+            hashes.push_back(hash);
+            totalHash += hash;
+            totalNumHashes++;
         }
+        totalHash = sha256(totalHash);
 
-        std::string new_buffer;
+        std::string new_buffer = totalHash + " " + " "; // The spaces will be replaced with the number of hashes, and chunks
         for (const auto& hash : hashes) {
             new_buffer += hash;
         }
         new_buffer += buffer;
 
-        write_to_redis(domain, -1, std::to_string(hashes.size()));
+        // Insert the number of chunks after the total hash
+        int numChunks = 0;
+        for (size_t i = 0; i < new_buffer.size(); i += FragmentSize) {
+            numChunks += 1;
+        }
+        new_buffer.replace(32, 1, std::string(1, static_cast<char>(totalNumHashes)));
+        new_buffer.replace(33, 1, std::string(1, static_cast<char>(numChunks)));
+
+        // Now the formatting of new_buffer is like so:
+        // - Total hash
+        // - Number of fragments
+        // - Hash 1
+        // - Hash 2
+        // - Hash 3
+        // - ...
+        // - Hash N
+        // - Domain,
+        // - IP,
+        // - Signature(Domain, IP)
 
         for (size_t i = 0; i < new_buffer.size(); i += FragmentSize) {
             std::string fragment = new_buffer.substr(i, FragmentSize);

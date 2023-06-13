@@ -1,13 +1,16 @@
-#include <iostream>
-#include <string>
 #include <boost/asio.hpp>
 #include <boost/crc.hpp>
-#include <regex>
+#include <iomanip>
+#include <iostream>
 #include <redisclient/redissyncclient.h>
+#include <regex>
+#include <string>
 
+const bool UseVerbose = true;      // Whether or not to print all the debugging messages
+const bool UseCRC = true;          // Control flag for using CRC
 const size_t MaxFrameSize = 1232;  // Max frame size in bytes
 const size_t ChecksumSize = 8;     // Checksum size in bytes
-const bool USE_CRC = false;        // Control flag for using CRC
+const size_t FragmentSize = UseCRC ? MaxFrameSize - ChecksumSize : MaxFrameSize;
 
 // Function to extract base domain from a given URL
 std::string get_base_domain(const std::string& domain) {
@@ -21,7 +24,12 @@ std::string get_base_domain(const std::string& domain) {
 std::string calculate_checksum(const std::string& data) {
     boost::crc_32_type result;
     result.process_bytes(data.data(), data.size());
-    return std::to_string(result.checksum());
+    std::ostringstream oss;
+    oss << std::hex << std::setw(ChecksumSize) << std::setfill('0') << result.checksum();
+    std::string checksum = oss.str();
+    // Assert that checksum is the correct size
+    assert(checksum.size() == ChecksumSize);
+    return checksum;
 }
 
 int main() {
@@ -53,7 +61,7 @@ int main() {
         std::string index_str = request_str.substr(request_str.find(',') + 1);
         int index = std::stoi(index_str);
 
-        std::cout << "Received request for domain: " << domain << ", index: " << index << "\n";
+        if(UseVerbose) std::cout << "Received request for domain: " << domain << ", index: " << index << "\n";
 
         std::string key = domain + "," + index_str;
         std::deque<redisclient::RedisBuffer> args = { key };
@@ -62,11 +70,11 @@ int main() {
         if (redisReply.isOk() && redisReply.toString().length() > 0) {
             std::string data = redisReply.toString();
             std::string reply = data;
-            if (USE_CRC) {
+            if (UseCRC) {
                 std::string checksum = calculate_checksum(data);
-                reply += "," + checksum;
+                reply += checksum;  // Append the checksum without a comma
             }
-            //std::cout << "Sending " << reply << "\n";
+            //if(UseVerbose) std::cout << "Sending " << reply << "\n";
             socket.send_to(boost::asio::buffer(reply), sender_endpoint);
         } else {
             std::string reply = "N";
