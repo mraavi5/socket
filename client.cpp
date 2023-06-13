@@ -5,6 +5,7 @@
 #include <iostream>
 #include <openssl/evp.h>
 #include <oqs/oqs.h>
+#include <random>
 #include <regex>
 #include <sstream>
 #include <string>
@@ -58,8 +59,11 @@ std::string calculate_checksum(const std::string& data) {
 }
 
 // Request a chunk at an index from the server
-std::string requestChunkAtIndex(boost::asio::ip::udp::socket &socket, boost::asio::ip::udp::endpoint &receiver_endpoint, std::string domain, int index) {
+std::string requestChunkAtIndex(boost::asio::ip::udp::socket &socket, boost::asio::ip::udp::endpoint &receiver_endpoint, std::string domain, int index, int nonce = 0) {
     std::string request = domain + "," + std::to_string(index);
+    if(index == 0) {
+        request += "," + std::to_string(nonce);
+    }
     socket.send_to(boost::asio::buffer(request), receiver_endpoint);
 
     char reply[MaxFrameSize];
@@ -88,6 +92,15 @@ std::string get_base_domain(const std::string& domain) {
     return sm[1];
 }
 
+// Generate a random 32-bit integer
+uint32_t generateRandomNumber() {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<uint32_t> dis(0, UINT32_MAX);
+    uint32_t randomNumber = dis(gen);
+    return randomNumber;
+}
+
 int main(int argc, char* argv[]) {
     if (argc != 3) {
         std::cerr << "Usage: " << argv[0] << " <server IP> <domain>\n";
@@ -104,12 +117,13 @@ int main(int argc, char* argv[]) {
     boost::asio::ip::udp::socket socket(io_service);
     socket.open(boost::asio::ip::udp::v4());
 
-    if(UseVerbose) std::cout << "PROCESS 1: Extract the totalHash and NumChunks" << std::endl;
+    if(UseVerbose) std::cout << "PROCESS 1: Extract the TotalHash, TotalNumHashes, and NumChunks" << std::endl;
 
+    int nonce = generateRandomNumber();
     std::string data = "";
     bool isValid = false;
     while(!isValid) {
-        data = requestChunkAtIndex(socket, receiver_endpoint, domain, 0);
+        data = requestChunkAtIndex(socket, receiver_endpoint, domain, 0, nonce);
         std::pair<bool, std::string> resultPair = checkChecksum(data);
         isValid = resultPair.first;
         if (!isValid) {
@@ -122,7 +136,7 @@ int main(int argc, char* argv[]) {
     int totalNumHashes = static_cast<int>(data.substr(32, 1)[0]);
     std::string totalManualHash = "";
     int numChunks = static_cast<int>(data.substr(33, 1)[0]);
-    if(UseVerbose) std::cout << "totalHash = " << to_hex_string(totalHash) << ", totalNumHashes = " << totalNumHashes << ", numChunks = " << numChunks << std::endl;
+    if(UseVerbose) std::cout << "TotalHash = " << to_hex_string(totalHash) << ", TotalNumHashes = " << totalNumHashes << ", NumChunks = " << numChunks << std::endl;
 
     if(UseVerbose) std::cout << "PROCESS 2: Extract each of the hashes" << std::endl;
     int numReceivedChunks = 1;
@@ -149,7 +163,7 @@ int main(int argc, char* argv[]) {
         }
     }
     assert(totalNumHashes == 0);
-    totalManualHash = sha256(totalManualHash);
+    totalManualHash = sha256(sha256(totalManualHash) + "," + std::to_string(nonce));
     assert(totalManualHash == totalHash);
     if(UseVerbose) std::cout << "Total hash of hashes successfully verified!" << std::endl;
     if(UseVerbose) std::cout << "PROCESS 3: Fetch all the other data" << std::endl;

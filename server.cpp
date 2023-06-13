@@ -1,6 +1,7 @@
 #include <boost/asio.hpp>
 #include <boost/crc.hpp>
 #include <iomanip>
+#include <openssl/evp.h>
 #include <iostream>
 #include <redisclient/redissyncclient.h>
 #include <regex>
@@ -18,6 +19,34 @@ std::string get_base_domain(const std::string& domain) {
     std::smatch sm;
     std::regex_search(domain, sm, base_domain_regex);
     return sm[1];
+}
+
+// Function to calculate SHA256 hash of given data, string length=32
+std::string sha256(const std::string& data) {
+    unsigned char hash[EVP_MAX_MD_SIZE];
+    unsigned int hash_len;
+    EVP_MD_CTX* ctx = EVP_MD_CTX_new();
+    EVP_DigestInit_ex(ctx, EVP_sha256(), NULL);
+    EVP_DigestUpdate(ctx, data.data(), data.size());
+    EVP_DigestFinal_ex(ctx, hash, &hash_len);
+    EVP_MD_CTX_free(ctx);
+    std::string hashed_str;
+    hashed_str.reserve(hash_len);
+    for (int i = 0; i < hash_len; i++) {
+        hashed_str.push_back(static_cast<char>(hash[i]));
+    }
+    assert(hashed_str.length() == 32);
+    return hashed_str;
+}
+
+// Function to convert a 32-byte string to a 64-byte hexadecimal string
+std::string to_hex_string(const std::string& data) {
+    std::ostringstream ss;
+    ss << std::hex << std::setfill('0');
+    for (char c : data) {
+        ss << std::setw(2) << static_cast<unsigned>(static_cast<unsigned char>(c));
+    }
+    return ss.str();
 }
 
 // Function to calculate CRC32 checksum of given data
@@ -45,7 +74,7 @@ int main() {
     redis.connect(endpoint, ec);
 
     if(ec) {
-        std::cerr << "Cannot connect to Redis server: " << ec.message() << "\n";
+        std::cerr << "Cannot connect to Redis server: " << ec.message() << std::endl;
         return 1;
     }
 
@@ -59,22 +88,38 @@ int main() {
         std::string request_str(request, length);
         std::string domain = get_base_domain(request_str.substr(0, request_str.find(',')));
         std::string index_str = request_str.substr(request_str.find(',') + 1);
+        // Check for an optional nonce
+        int nonce = 0;
+        size_t nonce_pos = index_str.find(',');
+        if (nonce_pos != std::string::npos) {
+            std::string nonce_str = index_str.substr(nonce_pos + 1);
+            nonce = std::stoi(nonce_str);
+            index_str = index_str.substr(0, nonce_pos);
+        }
         int index = std::stoi(index_str);
 
-        if(UseVerbose) std::cout << "Received request for domain: " << domain << ", index: " << index << "\n";
+        if(UseVerbose) std::cout << "Received request for domain: " << domain << ", index: " << index << std::endl;
+        if(UseVerbose) if(index == 0) std::cout << "\tNonce=" << nonce << std::endl;
 
         std::string key = domain + "," + index_str;
         std::deque<redisclient::RedisBuffer> args = { key };
         auto redisReply = redis.command("GET", args);
 
         if (redisReply.isOk() && redisReply.toString().length() > 0) {
-            std::string data = redisReply.toString();
-            std::string reply = data;
+            std::string reply = redisReply.toString();
+            if(index == 0) {
+                // Update the total hash to include the nonce
+                std::string hash = reply.substr(0, 32);
+                //if(UseVerbose) std::cout << "Previous total hash: " << to_hex_string(hash) << std::endl;
+                hash = sha256(hash + "," + std::to_string(nonce));
+                //if(UseVerbose) std::cout << "Updated total hash:  " << to_hex_string(hash) << std::endl;
+                reply.replace(0, 32, hash);
+            }
             if (UseCRC) {
-                std::string checksum = calculate_checksum(data);
+                std::string checksum = calculate_checksum(reply);
                 reply += checksum;  // Append the checksum without a comma
             }
-            //if(UseVerbose) std::cout << "Sending " << reply << "\n";
+            //if(UseVerbose) std::cout << "Sending " << reply << std::endl;
             socket.send_to(boost::asio::buffer(reply), sender_endpoint);
         } else {
             std::string reply = "N";
