@@ -1,8 +1,3 @@
-// If you get this error:
-//      ./database_filler: error while loading shared libraries: libredis++.so.1: cannot open shared object file: No such file or directory
-// Solution, paste this:
-//      export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
-
 #include <fstream>
 #include <iomanip>
 #include <iostream>
