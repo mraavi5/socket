@@ -1,5 +1,6 @@
 sudo apt install -y astyle cmake gcc ninja-build libssl-dev python3-pytest python3-pytest-xdist unzip xsltproc doxygen graphviz python3-yaml valgrind
 sudo apt install -y build-essential git cmake python3 libssl-dev
+sudo apt install -y libboost-all-dev
 
 echo "Installing liboqs..."
 rm -rf liboqs
