@@ -17,3 +17,7 @@ then
 fi
 
 ./database_filler Dilithium2
+echo
+echo
+echo
+./pubkey_send.sh
