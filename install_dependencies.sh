@@ -1,4 +1,6 @@
 sudo apt install -y astyle cmake gcc ninja-build libssl-dev python3-pytest python3-pytest-xdist unzip xsltproc doxygen graphviz python3-yaml valgrind
+sudo apt install -y build-essential git cmake python3 libssl-dev
+sudo apt install -y libboost-all-dev
 
 echo "Installing liboqs..."
 rm -rf liboqs
@@ -7,6 +9,7 @@ cd liboqs
 mkdir build && cd build
 cmake -GNinja -DCMAKE_BUILD_TYPE=Release ..
 ninja
+sudo ninja install
 cd ../..
 
 sudo apt-get install -y redis-server
