@@ -86,6 +86,12 @@ int main() {
         size_t length = socket.receive_from(boost::asio::buffer(request), sender_endpoint);
 
         std::string request_str(request, length);
+        if (request_str == "?") {
+            std::string reply = "!";
+            socket.send_to(boost::asio::buffer(reply), sender_endpoint);
+            continue;
+        }
+        
         std::string domain = get_base_domain(request_str.substr(0, request_str.find(',')));
         std::string index_str = request_str.substr(request_str.find(',') + 1);
         // Check for an optional nonce
