@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <openssl/evp.h>
 #include <iostream>
+#include <fstream>
 #include <redisclient/redissyncclient.h>
 #include <regex>
 #include <string>
@@ -89,6 +90,17 @@ int main() {
         if (request_str == "?") {
             std::string reply = "!";
             socket.send_to(boost::asio::buffer(reply), sender_endpoint);
+            continue;
+        } else if (request_str == "?pubkey") {
+            // Send "algorithm.txt" first
+            std::ifstream file_alg("algorithm.txt", std::ios::binary);
+            std::string alg_content((std::istreambuf_iterator<char>(file_alg)), std::istreambuf_iterator<char>());
+            socket.send_to(boost::asio::buffer(alg_content), sender_endpoint);
+
+            // Then send "pubkey.key"
+            std::ifstream file_pub("pubkey.key", std::ios::binary);
+            std::string pub_content((std::istreambuf_iterator<char>(file_pub)), std::istreambuf_iterator<char>());
+            socket.send_to(boost::asio::buffer(pub_content), sender_endpoint);
             continue;
         }
         
