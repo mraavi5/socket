@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <iostream>
 #include <openssl/evp.h>
+#include <openssl/pem.h>
 #include <oqs/oqs.h>
 #include <random>
 #include <regex>
@@ -59,7 +60,7 @@ std::string calculate_checksum(const std::string& data) {
 }
 
 // Request a chunk at an index from the server
-std::string requestChunkAtIndex(boost::asio::ip::udp::socket &socket, boost::asio::ip::udp::endpoint &receiver_endpoint, std::string domain, int index, int nonce = 0) {
+std::string request_chunk_at_index(boost::asio::ip::udp::socket &socket, boost::asio::ip::udp::endpoint &receiver_endpoint, std::string domain, int index, int nonce = 0) {
     std::string request = domain + "," + std::to_string(index);
     if(index == 0) {
         request += "," + std::to_string(nonce);
@@ -75,7 +76,7 @@ std::string requestChunkAtIndex(boost::asio::ip::udp::socket &socket, boost::asi
 }
 
 // Check at the checksum matches, returning <true, data> if it matches, otherwise <false, data>
-std::pair<bool, std::string> checkChecksum(const std::string& data) {
+std::pair<bool, std::string> check_checksum(const std::string& data) {
     if (!UseCRC || data.size() < ChecksumSize)
         return {true, data};
     std::string received_checksum = data.substr(data.size() - ChecksumSize);
@@ -93,13 +94,59 @@ std::string get_base_domain(const std::string& domain) {
 }
 
 // Generate a random 32-bit integer
-uint32_t generateRandomNumber() {
+uint32_t generate_random_number() {
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<uint32_t> dis(0, UINT32_MAX);
     uint32_t randomNumber = dis(gen);
     return randomNumber;
 }
+
+// Determine if an algorithm is classical (true) or post-quantum (false)
+bool is_algorithm_classical(const std::string& algorithm) {
+    return (algorithm.compare(0, 3, "rsa") == 0 ||
+            algorithm.compare(0, 4, "secp") == 0 ||
+            algorithm.compare(0, 4, "sect") == 0);
+}
+
+// Verify a signature
+bool verify_signature(std::string algorithm, std::string message, std::string signature, uint8_t *public_key, size_t public_key_length) {
+    if (is_algorithm_classical(algorithm)) {
+        const EVP_MD* md;
+        EVP_MD_CTX* mdctx = EVP_MD_CTX_new();
+        EVP_PKEY_CTX* pctx = NULL;
+
+        const unsigned char * pkey_buffer = public_key;  // Using a non-const version for compatibility with old OpenSSL versions
+        EVP_PKEY* pkey = d2i_PUBKEY(NULL, &pkey_buffer, public_key_length);  // Pass -1 if length is not known
+        size_t signature_len = signature.size();
+        std::vector<uint8_t> signature_vec(signature.begin(), signature.end());
+
+        if (algorithm.find("rsa") != std::string::npos)
+            md = EVP_sha256(); // Set the digest method directly
+        else
+            md = EVP_get_digestbynid(EVP_PKEY_type(EVP_PKEY_id(pkey))); // Get the digest method based on key type
+
+        EVP_DigestVerifyInit(mdctx, &pctx, md, NULL, pkey);
+        EVP_DigestVerifyUpdate(mdctx, reinterpret_cast<const unsigned char*>(message.c_str()), message.size());
+
+        int verify_result = EVP_DigestVerifyFinal(mdctx, signature_vec.data(), signature_len);
+        
+        EVP_MD_CTX_free(mdctx);
+
+        return verify_result == 1;
+    } else {
+        OQS_SIG *sig = OQS_SIG_new(algorithm.c_str());
+        uint8_t *message_bytes = (uint8_t *)message.c_str();
+        size_t message_len = message.length();
+        uint8_t *signature_bytes = (uint8_t *)signature.c_str();
+        size_t signature_len = signature.length();
+        int verify_result = OQS_SIG_verify(sig, message_bytes, message_len, signature_bytes, signature_len, public_key);
+        OQS_SIG_free(sig);
+
+        return verify_result == OQS_SUCCESS;
+    }
+}
+
 
 int main(int argc, char* argv[]) {
     if (argc != 3) {
@@ -119,12 +166,12 @@ int main(int argc, char* argv[]) {
 
     if(UseVerbose) std::cout << "PROCESS 1: Extract the TotalHash, TotalNumHashes, and NumChunks" << std::endl;
 
-    int nonce = generateRandomNumber();
+    int nonce = generate_random_number();
     std::string data = "";
     bool isValid = false;
     while(!isValid) {
-        data = requestChunkAtIndex(socket, receiver_endpoint, domain, 0, nonce);
-        std::pair<bool, std::string> resultPair = checkChecksum(data);
+        data = request_chunk_at_index(socket, receiver_endpoint, domain, 0, nonce);
+        std::pair<bool, std::string> resultPair = check_checksum(data);
         isValid = resultPair.first;
         if (!isValid) {
             if(UseVerbose) std::cout << "Checksum verification failed for chunk at index 0.\n";
@@ -142,24 +189,35 @@ int main(int argc, char* argv[]) {
     int numReceivedChunks = 1;
     std::vector<std::string> hashes;
     std::string contents = data.substr(34);
-    while(totalNumHashes > 0 && numReceivedChunks < numChunks) {
-        if(contents.length() >= 32) {
-            std::string chunk = contents.substr(0, 32);
-            contents = contents.substr(32);
-            hashes.push_back(chunk);
-            if(UseVerbose) std::cout << "\tHash " << hashes.size() << " = " << to_hex_string(hashes[hashes.size() - 1]) << std::endl;
-            totalNumHashes--;
-            totalManualHash += chunk;
-        } else {
-            isValid = false;
-            while(!isValid) {
-                data = requestChunkAtIndex(socket, receiver_endpoint, domain, numReceivedChunks);
-                std::pair<bool, std::string> resultPair = checkChecksum(data);
-                isValid = resultPair.first;
-                data = resultPair.second;
+
+    if (numChunks == 1 && totalNumHashes == 1) {
+        // Handle the case where all the data fits into one chunk
+        std::string chunk = contents.substr(0, 32);
+        contents = contents.substr(32);
+        hashes.push_back(chunk);
+        if(UseVerbose) std::cout << "\tHash " << hashes.size() << " = " << to_hex_string(hashes[hashes.size() - 1]) << std::endl;
+        totalNumHashes--;
+        totalManualHash += chunk;
+    } else {
+        while(totalNumHashes > 0 && numReceivedChunks < numChunks) {
+            if(contents.length() >= 32) {
+                std::string chunk = contents.substr(0, 32);
+                contents = contents.substr(32);
+                hashes.push_back(chunk);
+                if(UseVerbose) std::cout << "\tHash " << hashes.size() << " = " << to_hex_string(hashes[hashes.size() - 1]) << std::endl;
+                totalNumHashes--;
+                totalManualHash += chunk;
+            } else {
+                isValid = false;
+                while(!isValid) {
+                    data = request_chunk_at_index(socket, receiver_endpoint, domain, numReceivedChunks);
+                    std::pair<bool, std::string> resultPair = check_checksum(data);
+                    isValid = resultPair.first;
+                    data = resultPair.second;
+                }
+                numReceivedChunks++;
+                contents += data;
             }
-            numReceivedChunks++;
-            contents += data;
         }
     }
     assert(totalNumHashes == 0);
@@ -174,6 +232,7 @@ int main(int argc, char* argv[]) {
             contents = contents.substr(FragmentSize);
             std::string chunkHash = sha256(chunk);
             bool isValid = (chunkHash == hashes[totalNumHashes]);
+
             assert(isValid);
             // If it's not valid, we could request the previous numReceivedChunks, keep track of how offset it is, then take the substr(offset) of it to retry the hash.
             totalNumHashes++;
@@ -185,8 +244,8 @@ int main(int argc, char* argv[]) {
 
         isValid = false;
         while(!isValid) {
-            data = requestChunkAtIndex(socket, receiver_endpoint, domain, numReceivedChunks);
-            std::pair<bool, std::string> resultPair = checkChecksum(data);
+            data = request_chunk_at_index(socket, receiver_endpoint, domain, numReceivedChunks);
+            std::pair<bool, std::string> resultPair = check_checksum(data);
             isValid = resultPair.first;
             data = resultPair.second;
         }
@@ -198,10 +257,19 @@ int main(int argc, char* argv[]) {
     if(contents.length() > 0) {
         std::string chunk = contents;
         std::string chunkHash = sha256(chunk);
-        bool isValid = (chunkHash == hashes[totalNumHashes]);
-        assert(isValid);
-        // If it's not valid, we could request the previous numReceivedChunks, keep track of how offset it is, then take the substr(offset) of it to retry the hash.
-        totalNumHashes++;
+        
+        bool isValid = true;
+        if(totalNumHashes < hashes.size()){
+            isValid = (chunkHash == hashes[totalNumHashes]);
+            if(!isValid) {
+                std::cout << "Calculated hash: " << to_hex_string(chunkHash) << std::endl;
+                std::cout << "Expected hash: " << to_hex_string(hashes[totalNumHashes]) << std::endl;
+                std::cout << "Chunk data: " << chunk << std::endl;
+            }
+            assert(isValid);
+            totalNumHashes++;
+        }
+
         finalVerifiedData += chunk;
         if(UseVerbose) std::cout << "\tHash " << totalNumHashes << " successfully verified!" << std::endl;
     }
@@ -217,6 +285,7 @@ int main(int argc, char* argv[]) {
     }
     std::string pubkey((std::istreambuf_iterator<char>(pub_file)), std::istreambuf_iterator<char>());
     uint8_t *public_key = (uint8_t *)pubkey.c_str();
+    size_t public_key_length = pubkey.length();
 
     // Read the algorithm from file
     std::ifstream alg_file("algorithm.txt");
@@ -242,19 +311,15 @@ int main(int argc, char* argv[]) {
     if(UseVerbose) std::cout << "\tReceived IP: " << receivedIP << std::endl;
     if(UseVerbose) std::cout << "\tReceived signature hash: " << to_hex_string(sha256(signature)) << std::endl;
 
-    OQS_SIG *sig = OQS_SIG_new(algorithm.c_str());
-    std::string message = domain + "," + receivedIP;
-    uint8_t *message_bytes = (uint8_t *)message.c_str();
-    size_t message_len = message.length();
-    uint8_t *signature_bytes = (uint8_t *)signature.c_str();
-    size_t signature_len = signature.length();
 
-    if(UseVerbose) if (OQS_SIG_verify(sig, message_bytes, message_len, signature_bytes, signature_len, public_key) == OQS_SUCCESS) {
+    std::string message = domain + "," + receivedIP;
+    bool verified = verify_signature(algorithm, message, signature, public_key, public_key_length);
+
+    if(UseVerbose) if (verified) {
         std::cout << "Signature verification was successful!\n";
     } else {
         std::cout << "SIGNATURE VERIFICATION FAILED\n";
     }
-    OQS_SIG_free(sig);
     
     if(UseVerbose) {
         std::cout << receivedIP << std::endl;

@@ -16,7 +16,15 @@ then
     redis-server &
 fi
 
-./database_filler Dilithium2
+# "secp224r1", "secp256k1", "secp384r1", "secp521r1", "sect571r1",
+# "rsa1024", "rsa2048", "rsa4096", "Dilithium2", "Dilithium3", "Dilithium5",
+# "Falcon-512", "Falcon-1024", 
+# "SPHINCS+-SHA2-128f-simple", "SPHINCS+-SHA2-128s-simple",
+# "SPHINCS+-SHA2-256f-simple", "SPHINCS+-SHA2-256s-simple"
+
+
+./database_filler SPHINCS+-SHA2-256s-simple
+
 echo
 echo
 echo

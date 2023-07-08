@@ -1,1 +1,1 @@
-Dilithium2
+SPHINCS+-SHA2-256s-simple

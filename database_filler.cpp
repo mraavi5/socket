@@ -2,6 +2,8 @@
 #include <iomanip>
 #include <iostream>
 #include <openssl/evp.h>
+#include <openssl/pem.h>
+#include <openssl/rand.h>
 #include <oqs/oqs.h>
 #include <regex>
 #include <sstream>
@@ -22,32 +24,103 @@ std::string get_base_domain(const std::string& domain) {
     return sm[1];
 }
 
-// Function to sign a message
-std::string sign_message(const std::string& message, OQS_SIG* signer, const uint8_t* secret_key) {
-    std::vector<uint8_t> signature(signer->length_signature);
-    size_t signature_len;
-
-    if (OQS_SIG_sign(signer, signature.data(), &signature_len, reinterpret_cast<const uint8_t*>(message.data()), message.size(), secret_key) != OQS_SUCCESS) {
-        std::cerr << "Failed to sign message\n";
-        exit(1);
-    }
-
-    return std::string(signature.begin(), signature.begin() + signature_len);
+// Determine if an algorithm is classical (true) or post-quantum (false)
+bool is_algorithm_classical(const std::string& algorithm) {
+    return (algorithm.compare(0, 3, "rsa") == 0 ||
+            algorithm.compare(0, 4, "secp") == 0 ||
+            algorithm.compare(0, 4, "sect") == 0);
 }
 
-// // Function to verify a message
-// bool verify_message(const std::string& message, OQS_SIG* signer, std::string signature, std::string public_key) {
-//     std::cout << "Verifying " << message << std::endl;
-//     std::vector<uint8_t> signature_vec(signature.begin(), signature.end());
-//     std::vector<uint8_t> public_key_vec(public_key.begin(), public_key.end());
-//     // Verify the signature
-//     OQS_STATUS status = OQS_SIG_verify(signer, reinterpret_cast<const uint8_t*>(message.data()), message.size(), signature_vec.data(), signature_vec.size(), public_key_vec.data());
-//     if (status == OQS_SUCCESS) {
-//         return true;
-//     } else {
-//         return false;
-//     }
-// }
+// Generate a key pair, supported algorithms are as follows:
+//  "secp224r1", "secp256k1", "secp384r1", "secp521r1", "sect571r1", "rsa1024", "rsa2048", "rsa4096", "Dilithium2", "Dilithium3", "Dilithium5", "Falcon-512", "Falcon-1024"
+std::tuple<uint8_t*, uint8_t*, size_t, size_t> generate_key(const std::string& algorithm, OQS_SIG* signer = NULL) {
+    if (is_algorithm_classical(algorithm)) {
+        EVP_PKEY *pkey = EVP_PKEY_new();
+        EVP_PKEY_CTX *pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
+        EVP_PKEY_keygen_init(pctx);
+
+        if (algorithm == "secp224r1")
+            EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pctx, NID_secp224r1);
+        else if (algorithm == "secp256k1")
+            EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pctx, NID_secp256k1);
+        else if (algorithm == "secp384r1")
+            EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pctx, NID_secp384r1);
+        else if (algorithm == "secp521r1")
+            EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pctx, NID_secp521r1);
+        else if (algorithm == "sect571r1")
+            EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pctx, NID_sect571r1);
+        else if (algorithm == "rsa1024" || algorithm == "rsa2048" || algorithm == "rsa4096")
+            EVP_PKEY_CTX_set_rsa_keygen_bits(pctx, stoi(algorithm.substr(3)));
+        else {
+            std::cerr << "Unsupported algorithm." << std::endl;
+            return std::make_tuple(nullptr, nullptr, 0, 0);
+        }
+
+        EVP_PKEY_keygen(pctx, &pkey);
+        EVP_PKEY_CTX_free(pctx);
+
+        uint8_t *secret_key = nullptr, *public_key = nullptr;
+        int secret_key_len = i2d_PrivateKey(pkey, &secret_key);
+        int public_key_len = i2d_PUBKEY(pkey, &public_key);
+
+        EVP_PKEY_free(pkey);
+
+        return std::make_tuple(secret_key, public_key, secret_key_len, public_key_len);
+
+    } else { // Post-quantum signature algorithms
+
+        uint8_t *public_key = (uint8_t *) malloc(signer->length_public_key);
+        uint8_t *secret_key = (uint8_t *) malloc(signer->length_secret_key);
+
+        // Generate the key pair
+        if (OQS_SIG_keypair(signer, public_key, secret_key) != OQS_SUCCESS) {
+            std::cerr << "Failed to generate key pair" << std::endl;
+            return std::make_tuple(nullptr, nullptr, 0, 0);
+        }
+
+        return std::make_tuple(secret_key, public_key, signer->length_secret_key, signer->length_public_key);
+    }
+}
+
+
+// Function to sign a message
+std::string sign_message(const std::string& algorithm, const std::string& message, const uint8_t* secret_key, size_t secret_key_length, OQS_SIG* signer = NULL) {
+    if (is_algorithm_classical(algorithm)) {
+        const EVP_MD* md;
+        EVP_MD_CTX* mdctx = EVP_MD_CTX_new();
+        EVP_PKEY_CTX* pctx = NULL;
+        EVP_PKEY* pkey = d2i_PrivateKey(EVP_PKEY_RSA, NULL, &secret_key, secret_key_length);
+        size_t signature_len;
+
+        if (algorithm.find("rsa") != std::string::npos)
+            md = EVP_sha256(); // Set the digest method directly. Here, I've used SHA256 as an example.
+        else
+            md = EVP_get_digestbynid(EVP_PKEY_type(EVP_PKEY_id(pkey))); // Get the digest method based on key type
+
+        EVP_DigestSignInit(mdctx, &pctx, md, NULL, pkey);
+        EVP_DigestSignUpdate(mdctx, reinterpret_cast<const unsigned char*>(message.c_str()), message.size());
+
+        EVP_DigestSignFinal(mdctx, NULL, &signature_len); // Determine the buffer length
+
+        std::vector<uint8_t> signature_vec(signature_len);
+        EVP_DigestSignFinal(mdctx, signature_vec.data(), &signature_len);
+
+        EVP_MD_CTX_free(mdctx);
+
+        return std::string(signature_vec.begin(), signature_vec.end());
+
+    } else {
+        std::vector<uint8_t> signature(signer->length_signature);
+        size_t signature_len;
+
+        if (OQS_SIG_sign(signer, signature.data(), &signature_len, reinterpret_cast<const uint8_t*>(message.data()), message.size(), secret_key) != OQS_SUCCESS) {
+            std::cerr << "Failed to sign message\n";
+            exit(1);
+        }
+
+        return std::string(signature.begin(), signature.begin() + signature_len);
+    }
+}
 
 // Function to calculate SHA256 hash of given data, string length=32
 std::string sha256(const std::string& data) {
@@ -95,21 +168,19 @@ int main(int argc, char* argv[]) {
     }
 
     std::string algorithm = argv[1];
+    uint8_t *secret_key, *public_key;
+    size_t public_key_length, secret_key_length;
+    OQS_SIG* signer = NULL;
 
-    OQS_SIG* signer = OQS_SIG_new(algorithm.c_str());
-    if (signer == NULL) {
-        std::cerr << "Failed to initialize " << algorithm << " signer\n";
-        return 1;
-    }
-    
-    // Allocate space for the public and secret keys
-    uint8_t *public_key = (uint8_t *) malloc(signer->length_public_key);
-    uint8_t *secret_key = (uint8_t *) malloc(signer->length_secret_key);
-    
-    // Generate the key pair
-    if (OQS_SIG_keypair(signer, public_key, secret_key) != OQS_SUCCESS) {
-        std::cerr << "Failed to generate key pair" << std::endl;
-        return 1;
+    if (!is_algorithm_classical(algorithm)) {
+        signer = OQS_SIG_new(algorithm.c_str());
+        if (signer == NULL) {
+            std::cerr << "Failed to initialize " << algorithm << " signer\n";
+            return 1;
+        }
+        std::tie(secret_key, public_key, secret_key_length, public_key_length) = generate_key(algorithm, signer);
+    } else {
+        std::tie(secret_key, public_key, secret_key_length, public_key_length) = generate_key(algorithm);
     }
 
     // Write to the files
@@ -126,7 +197,7 @@ int main(int argc, char* argv[]) {
         std::cerr << "Failed to open pubkey.key\n";
         return 1;
     }
-    public_file.write(reinterpret_cast<char*>(public_key), signer->length_public_key);
+    public_file.write(reinterpret_cast<char*>(public_key), public_key_length);
     public_file.close();
 
     std::ofstream private_file("privkey.key", std::ios::binary);
@@ -134,15 +205,15 @@ int main(int argc, char* argv[]) {
         std::cerr << "Failed to open privkey.key\n";
         return 1;
     }
-    private_file.write(reinterpret_cast<char*>(secret_key), signer->length_secret_key);
+    private_file.write(reinterpret_cast<char*>(secret_key), secret_key_length);
     private_file.close();
 
 
     // Write to redis
     sw::redis::Redis redis("tcp://127.0.0.1:6379");
     redis.set("ALGORITHM_USED", algorithm);
-    redis.set("PUBLIC_KEY", std::string(reinterpret_cast<char*>(public_key), signer->length_public_key));
-    redis.set("PRIVATE_KEY", std::string(reinterpret_cast<char*>(secret_key), signer->length_secret_key));
+    redis.set("PUBLIC_KEY", std::string(reinterpret_cast<char*>(public_key), public_key_length));
+    redis.set("PRIVATE_KEY", std::string(reinterpret_cast<char*>(secret_key), secret_key_length));
 
     std::ifstream file("alexa_top_1000.csv");
     std::string line;
@@ -160,9 +231,9 @@ int main(int argc, char* argv[]) {
         domain = get_base_domain(domain);
 
         std::string message = domain + "," + ip;
-        std::string signature = sign_message(message, signer, secret_key);
+        std::string signature = sign_message(algorithm, message, secret_key, secret_key_length, signer);
 
-        //std::string public_key_str(reinterpret_cast<char*>(public_key), signer->length_public_key);
+        //std::string public_key_str(reinterpret_cast<char*>(public_key), public_key_length);
         // Read the public key from file
         // std::ifstream pub_file("pubkey.key");
         // if (!pub_file.is_open()) {
@@ -224,8 +295,25 @@ int main(int argc, char* argv[]) {
 
         std::cout << "Wrote " << (1 + new_buffer.size() / FragmentSize) << " fragments for " << domain << " = " << ip << "\n";
     }
+    
+    // Cleanup
+    if (is_algorithm_classical(algorithm)) {
+        // For classical algorithms, the private and public keys are stored in OpenSSL's BIO buffers
+        // The memory must be manually freed
+        BIO *secret_bio = BIO_new(BIO_s_mem());
+        BIO_write(secret_bio, secret_key, secret_key_length); // Write to BIO
+        BIO_free(secret_bio);
 
-    OQS_SIG_free(signer);
+        BIO *public_bio = BIO_new(BIO_s_mem());
+        BIO_write(public_bio, public_key, public_key_length); // Write to BIO
+        BIO_free(public_bio);
+    } else {
+        // For post-quantum algorithms, the keys are allocated with malloc and must be freed with free
+        free(secret_key);
+        free(public_key);
+        OQS_SIG_free(signer);
+    }
+
     std::cout << "Done!\n";
 
     return 0;
