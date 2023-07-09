@@ -1,0 +1,4 @@
+Sample Number for secp521r1,Number of Fragments,Total Time to Fill Database (ms),Total Time for One Entry (ms),Key Generation (ms),Message Signing (ms),Time for Hash Step (ms),Time for Redis Step (ms),Public Key Length (B),Private Key Length (B),Avg Signature Length (B),
+1,1,2032.3,1.72951,162.83,1.46274,0.00620585,0.259157,294,1192,256,
+2,1,1889.11,1.63419,113.249,1.47441,0.00650463,0.151827,294,1192,256,
+3,1,1849.16,1.58965,125.604,1.44589,0.00623665,0.136102,294,1192,256,

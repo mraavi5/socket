@@ -10,6 +10,7 @@
 #include <string>
 #include <sw/redis++/redis++.h>
 #include <vector>
+#include <chrono>
 
 const bool UseVerbose = false;     // Whether or not to print all the debugging messages
 const bool UseCRC = true;          // Control flag for using CRC
@@ -168,6 +169,7 @@ void write_to_redis(const std::string& domain, int index, const std::string& dat
 }
 
 int main(int argc, char* argv[]) {
+    std::chrono::high_resolution_clock::time_point t1, t2, t3, t4, t5, t6, t7, t8;
     if (argc < 2) {
         std::cerr << "Usage: " << argv[0] << " <algorithm>\n";
         return 1;
@@ -184,9 +186,13 @@ int main(int argc, char* argv[]) {
             std::cerr << "Failed to initialize " << algorithm << " signer\n";
             return 1;
         }
+        t1 = std::chrono::high_resolution_clock::now(); //////////////////////////////////////////////////////// Timer 1 (keygen start)
         std::tie(secret_key, public_key, secret_key_length, public_key_length) = generate_key(algorithm, signer);
+        t2 = std::chrono::high_resolution_clock::now(); //////////////////////////////////////////////////////// Timer 2 (keygen end)
     } else {
+        t1 = std::chrono::high_resolution_clock::now(); //////////////////////////////////////////////////////// Timer 1 (keygen start)
         std::tie(secret_key, public_key, secret_key_length, public_key_length) = generate_key(algorithm);
+        t2 = std::chrono::high_resolution_clock::now(); //////////////////////////////////////////////////////// Timer 2 (keygen end)
     }
 
     // Write to the files
@@ -227,6 +233,16 @@ int main(int argc, char* argv[]) {
     // Ignore header
     std::getline(file, line);
 
+    
+    int numEntriesCounter = 0;
+    double total_entry_ms = 0;
+    double sign_step = 0;
+    double hash_step = 0;
+    double redis_step = 0;
+    double num_fragments = 0;
+    double avg_signature_length = 0;
+    //std::chrono::duration_cast<std::chrono::duration<double>>(t6 - t1);
+
     while (std::getline(file, line)) {
         std::string domain, ip;
         std::stringstream ss(line);
@@ -237,13 +253,19 @@ int main(int argc, char* argv[]) {
         domain = get_base_domain(domain);
 
         std::string message = domain + "," + ip;
+
+        t3 = std::chrono::high_resolution_clock::now(); //////////////////////////////////////////////////////// Timer 3 (sign start)
         std::string signature = sign_message(algorithm, message, secret_key, secret_key_length, signer);
+        t4 = std::chrono::high_resolution_clock::now(); //////////////////////////////////////////////////////// Timer 4 (sign end)
+
+        size_t signature_length = signature.length();
 
         std::string buffer = domain + "," + ip + "," + signature;
 
         std::string totalHash = "";
         int totalNumHashes = 0;
         std::vector<std::string> hashes;
+        t5 = std::chrono::high_resolution_clock::now(); //////////////////////////////////////////////////////// Timer 5 (hash start)
         for (size_t i = 0; i < buffer.size(); i += FragmentSize) {
             std::string hash = sha256(buffer.substr(i, FragmentSize));
             hashes.push_back(hash);
@@ -265,6 +287,7 @@ int main(int argc, char* argv[]) {
         }
         new_buffer.replace(32, 1, std::string(1, static_cast<char>(totalNumHashes)));
         new_buffer.replace(33, 1, std::string(1, static_cast<char>(numChunks)));
+        t6 = std::chrono::high_resolution_clock::now(); //////////////////////////////////////////////////////// Timer 6 (hash end)
 
         // Now the formatting of new_buffer is like so:
         // - Total hash
@@ -278,19 +301,38 @@ int main(int argc, char* argv[]) {
         // - IP,
         // - Signature(Domain, IP)
 
+        t7 = std::chrono::high_resolution_clock::now(); //////////////////////////////////////////////////////// Timer 7 (redis start)
         for (size_t i = 0; i < new_buffer.size(); i += FragmentSize) {
             std::string fragment = new_buffer.substr(i, FragmentSize);
             int index = i / FragmentSize;
             if(UseVerbose) {
                 std::cout << "\tFragment " << (index + 1) << ", " << fragment.length() << " bytes\n";
             }
+            num_fragments++;
             write_to_redis(domain, index, fragment);
         }
+        t8 = std::chrono::high_resolution_clock::now(); //////////////////////////////////////////////////////// Timer 8 (redis end)
 
         if(UseVerbose) {
             std::cout << "Wrote " << (1 + new_buffer.size() / FragmentSize) << " fragments for " << domain << " = " << ip << "\n";
         }
+
+
+        numEntriesCounter++;
+        total_entry_ms += std::chrono::duration<double, std::milli>(t8 - t3).count();
+        sign_step += std::chrono::duration<double, std::milli>(t4 - t3).count();
+        hash_step += std::chrono::duration<double, std::milli>(t6 - t5).count();
+        redis_step += std::chrono::duration<double, std::milli>(t8 - t7).count();
+        avg_signature_length += signature_length;
+        //std::chrono::duration_cast<std::chrono::duration<double>>(t6 - t1);
     }
+
+    total_entry_ms /= numEntriesCounter;
+    sign_step /= numEntriesCounter;
+    hash_step /= numEntriesCounter;
+    redis_step /= numEntriesCounter;
+    num_fragments /= numEntriesCounter;
+    avg_signature_length /= numEntriesCounter;
     
     // Cleanup
     if (is_algorithm_classical(algorithm)) {
@@ -310,8 +352,24 @@ int main(int argc, char* argv[]) {
         OQS_SIG_free(signer);
     }
 
+    double keygen_ms = std::chrono::duration<double, std::milli>(t2 - t1).count();
+    double total_database_fill_ms = std::chrono::duration<double, std::milli>(t8 - t1).count();
+
     if(UseVerbose) {
         std::cout << "Done!\n";
+    } else {
+        std::cout << "{";
+        std::cout << "\"num_fragments\":" << (num_fragments) << ",";
+        std::cout << "\"total_database_fill_ms\":" << (total_database_fill_ms) << ",";
+        std::cout << "\"total_entry_ms\":" << (total_entry_ms) << ",";
+        std::cout << "\"keygen_ms\":" << (keygen_ms) << ",";
+        std::cout << "\"sign_step\":" << (sign_step) << ",";
+        std::cout << "\"hash_step\":" << (hash_step) << ",";
+        std::cout << "\"redis_step\":" << (redis_step) << ",";
+        std::cout << "\"public_key_length\":" << (public_key_length) << ",";
+        std::cout << "\"secret_key_length\":" << (secret_key_length) << ",";
+        std::cout << "\"avg_signature_length\":" << (avg_signature_length);
+        std::cout << "}" << std::endl;
     }
 
     return 0;

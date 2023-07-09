@@ -1,0 +1,4 @@
+Sample Number for rsa4096,Number of Fragments,Total Time to Fill Database (ms),Total Time for One Entry (ms),Key Generation (ms),Message Signing (ms),Time for Hash Step (ms),Time for Redis Step (ms),Public Key Length (B),Private Key Length (B),Avg Signature Length (B),
+1,1,9847.81,8.53624,1236,8.30691,0.0105435,0.216829,550,2349,512,
+2,1,10959.9,8.83911,2041.24,8.5825,0.0132129,0.240709,550,2348,512,
+3,1,12852.1,8.63829,4138.08,8.38631,0.0107083,0.239094,550,2348,512,

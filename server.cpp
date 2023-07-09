@@ -106,7 +106,7 @@ int main() {
             std::string reply = algorithm;
             if (UseCRC) {
                 std::string checksum = calculate_checksum(reply);
-                //reply += checksum;  // Append the checksum without a comma
+                reply += checksum;  // Append the checksum without a comma
             }
             socket.send_to(boost::asio::buffer(reply), sender_endpoint);
             continue;

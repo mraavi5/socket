@@ -1,0 +1,4 @@
+Sample Number for sect571r1,Number of Fragments,Total Time to Fill Database (ms),Total Time for One Entry (ms),Key Generation (ms),Message Signing (ms),Time for Hash Step (ms),Time for Redis Step (ms),Public Key Length (B),Private Key Length (B),Avg Signature Length (B),
+1,1,2273.7,1.67132,463.586,1.46992,0.0062317,0.193784,294,1192,256,
+2,1,2430.13,1.69464,594.525,1.49434,0.00701843,0.191778,294,1190,256,
+3,1,2054.92,1.72831,182.442,1.488,0.00654783,0.232154,294,1192,256,

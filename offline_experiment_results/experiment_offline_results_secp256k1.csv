@@ -1,0 +1,4 @@
+Sample Number for secp256k1,Number of Fragments,Total Time to Fill Database (ms),Total Time for One Entry (ms),Key Generation (ms),Message Signing (ms),Time for Hash Step (ms),Time for Redis Step (ms),Public Key Length (B),Private Key Length (B),Avg Signature Length (B),
+1,1,1999.27,1.71314,133.588,1.5402,0.00721903,0.16413,294,1193,256,
+2,1,2214.49,1.76449,293.252,1.47987,0.00621479,0.276995,294,1190,256,
+3,1,2101.6,1.63925,327.246,1.45958,0.00613727,0.172116,294,1192,256,

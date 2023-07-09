@@ -4,7 +4,7 @@ import time
 
 numSamplesPerAlgorithm = 100
 
-algorithms = ["secp224r1", "secp256k1", "secp384r1", "secp521r1", "sect571r1", "rsa1024", "rsa2048", "rsa4096", "Dilithium2", "Dilithium3", "Dilithium5", "Falcon-512", "Falcon-1024", "SPHINCS+-SHA2-128f-simple", "SPHINCS+-SHA2-128s-simple", "SPHINCS+-SHA2-256f-simple", "SPHINCS+-SHA2-256s-simple"]
+algorithms = ["secp224r1", "secp256k1", "secp384r1", "secp521r1", "sect571r1", "rsa1024", "rsa2048", "rsa4096", "Dilithium2", "Dilithium3", "Dilithium5", "Falcon-512", "Falcon-1024", "SPHINCS+-SHA2-128f-simple", "SPHINCS+-SHA2-128s-simple", "SPHINCS+-SHA2-192f-simple", "SPHINCS+-SHA2-192s-simple", "SPHINCS+-SHA2-256f-simple", "SPHINCS+-SHA2-256s-simple", "SPHINCS+-SHAKE-128f-simple", "SPHINCS+-SHAKE-128s-simple", "SPHINCS+-SHAKE-192f-simple", "SPHINCS+-SHAKE-192s-simple", "SPHINCS+-SHAKE-256f-simple", "SPHINCS+-SHAKE-256s-simple"]
 
 def terminal(cmd):
 	return os.popen(cmd).read()

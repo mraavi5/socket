@@ -16,7 +16,7 @@ if os.geteuid() != 0:
 
 algorithms = ["secp224r1", "secp256k1", "secp384r1", "secp521r1", "sect571r1", "rsa1024", "rsa2048", "rsa4096", "Dilithium2", "Dilithium3", "Dilithium5", "Falcon-512", "Falcon-1024", "SPHINCS+-SHA2-128f-simple", "SPHINCS+-SHA2-128s-simple", "SPHINCS+-SHA2-256f-simple", "SPHINCS+-SHA2-256s-simple"]
 
-resultsDirectory = 'online_experiment_results'
+resultsDirectory = 'experiment_results'
 if not os.path.exists(resultsDirectory):
 	os.makedirs(resultsDirectory)
 

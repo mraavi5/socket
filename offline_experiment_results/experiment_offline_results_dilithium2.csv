@@ -1,0 +1,4 @@
+Sample Number for Dilithium2,Number of Fragments,Total Time to Fill Database (ms),Total Time for One Entry (ms),Key Generation (ms),Message Signing (ms),Time for Hash Step (ms),Time for Redis Step (ms),Public Key Length (B),Private Key Length (B),Avg Signature Length (B),
+1,3,678.532,0.519096,1.56011,0.112644,0.0155205,0.390064,1312,2528,2420,
+2,3,669.158,0.522294,1.67211,0.107136,0.0155627,0.398674,1312,2528,2420,
+3,3,644.237,0.495479,1.71734,0.107897,0.0155169,0.371199,1312,2528,2420,

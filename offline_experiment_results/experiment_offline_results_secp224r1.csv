@@ -1,0 +1,4 @@
+Sample Number for secp224r1,Number of Fragments,Total Time to Fill Database (ms),Total Time for One Entry (ms),Key Generation (ms),Message Signing (ms),Time for Hash Step (ms),Time for Redis Step (ms),Public Key Length (B),Private Key Length (B),Avg Signature Length (B),
+1,1,2497.09,1.84872,489.096,1.5899,0.00740476,0.249753,294,1191,256,
+2,1,2136.08,1.69952,286.183,1.53354,0.00641815,0.158113,294,1192,256,
+3,1,1963.14,1.67843,140.567,1.50594,0.00701298,0.163969,294,1190,256,
