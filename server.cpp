@@ -62,6 +62,17 @@ std::string calculate_checksum(const std::string& data) {
     return checksum;
 }
 
+// Trim
+std::string trim(const std::string& str) {
+    size_t first = str.find_first_not_of(' ');
+    if (std::string::npos == first)
+    {
+        return str;
+    }
+    size_t last = str.find_last_not_of(' ');
+    return str.substr(first, (last - first + 1));
+}
+
 int main() {
     boost::asio::io_service io_service;
     boost::asio::ip::udp::socket socket(io_service, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 5300));
@@ -79,6 +90,10 @@ int main() {
         return 1;
     }
 
+    std::ifstream file_alg("algorithm.txt", std::ios::binary);
+    std::string algorithm((std::istreambuf_iterator<char>(file_alg)), std::istreambuf_iterator<char>());
+    algorithm = trim(algorithm);
+
     std::cout << "Server is listening...\n";
 
     for (;;) {
@@ -88,19 +103,30 @@ int main() {
 
         std::string request_str(request, length);
         if (request_str == "?") {
-            std::string reply = "!";
+            std::string reply = algorithm;
+            if (UseCRC) {
+                std::string checksum = calculate_checksum(reply);
+                //reply += checksum;  // Append the checksum without a comma
+            }
             socket.send_to(boost::asio::buffer(reply), sender_endpoint);
             continue;
         } else if (request_str == "?pubkey") {
-            // Send "algorithm.txt" first
-            std::ifstream file_alg("algorithm.txt", std::ios::binary);
-            std::string alg_content((std::istreambuf_iterator<char>(file_alg)), std::istreambuf_iterator<char>());
-            socket.send_to(boost::asio::buffer(alg_content), sender_endpoint);
-
+            // Send the algorithm being used
+            std::string reply = algorithm;
+            if (UseCRC) {
+                std::string checksum = calculate_checksum(reply);
+                reply += checksum;  // Append the checksum without a comma
+            }
+            socket.send_to(boost::asio::buffer(reply), sender_endpoint);
             // Then send "pubkey.key"
             std::ifstream file_pub("pubkey.key", std::ios::binary);
             std::string pub_content((std::istreambuf_iterator<char>(file_pub)), std::istreambuf_iterator<char>());
-            socket.send_to(boost::asio::buffer(pub_content), sender_endpoint);
+            reply = pub_content;
+            if (UseCRC) {
+                std::string checksum = calculate_checksum(reply);
+                //reply += checksum;  // Append the checksum without a comma
+            }
+            socket.send_to(boost::asio::buffer(reply), sender_endpoint);
             continue;
         }
         
