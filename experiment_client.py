@@ -78,7 +78,7 @@ if __name__ == '__main__':
 			while algorithm == 'OFFLINE':
 				algorithm = terminal('./is_server_up')
 		if algorithm != prevAlgorithm:
-			if algorithm == algorithms[0] and sampleNum > numSamplesPerAlgorithm:
+			if algorithm == algorithms[0] and sampleNum >= numSamplesPerAlgorithm:
 				# Full loop completed
 				break
 			terminal('./download_alg_and_pubkey')
