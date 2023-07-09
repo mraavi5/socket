@@ -26,7 +26,7 @@ int main(int argc, char* argv[]) {
             result += buffer.data();
         }
 
-        if (result.find("Online") != std::string::npos) {
+        if (result.find("OFFLINE") == std::string::npos) {
             break;
         }
         std::cout << "Server is not up yet. Retrying...\n";

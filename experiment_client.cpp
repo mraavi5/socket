@@ -11,9 +11,10 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <chrono>
 //#include <openssl/sha.h>
 
-const bool UseVerbose = false;      // Whether or not to print all the debugging messages
+const bool UseVerbose = false;     // Whether or not to print all the debugging messages
 const bool UseCRC = true;          // Control flag for using CRC
 const size_t MaxFrameSize = 1232;  // Max frame size in bytes
 const size_t ChecksumSize = 8;     // Checksum size in bytes
@@ -149,6 +150,7 @@ bool verify_signature(std::string algorithm, std::string message, std::string si
 
 
 int main(int argc, char* argv[]) {
+    std::chrono::high_resolution_clock::time_point t1, t2, t3, t4, t5, t6;
     if (argc != 3) {
         std::cerr << "Usage: " << argv[0] << " <server IP> <domain>\n";
         return 1;
@@ -165,10 +167,13 @@ int main(int argc, char* argv[]) {
     socket.open(boost::asio::ip::udp::v4());
 
     if(UseVerbose) std::cout << "PROCESS 1: Extract the TotalHash, TotalNumHashes, and NumChunks" << std::endl;
+    
 
     int nonce = generate_random_number();
     std::string data = "";
     bool isValid = false;
+
+    t1 = std::chrono::high_resolution_clock::now(); //////////////////////////////////////////////////////// Timer 1 (hash verification start)
     while(!isValid) {
         data = request_chunk_at_index(socket, receiver_endpoint, domain, 0, nonce);
         std::pair<bool, std::string> resultPair = check_checksum(data);
@@ -186,6 +191,7 @@ int main(int argc, char* argv[]) {
     if(UseVerbose) std::cout << "TotalHash = " << to_hex_string(totalHash) << ", TotalNumHashes = " << totalNumHashes << ", NumChunks = " << numChunks << std::endl;
 
     if(UseVerbose) std::cout << "PROCESS 2: Extract each of the hashes" << std::endl;
+
     int numReceivedChunks = 1;
     std::vector<std::string> hashes;
     std::string contents = data.substr(34);
@@ -223,9 +229,14 @@ int main(int argc, char* argv[]) {
     assert(totalNumHashes == 0);
     totalManualHash = sha256(sha256(totalManualHash) + "," + std::to_string(nonce));
     assert(totalManualHash == totalHash);
+    t2 = std::chrono::high_resolution_clock::now(); //////////////////////////////////////////////////////// Timer 2 (hash verification end)
+
     if(UseVerbose) std::cout << "Total hash of hashes successfully verified!" << std::endl;
     if(UseVerbose) std::cout << "PROCESS 3: Fetch all the other data" << std::endl;
+
+
     std::string finalVerifiedData = "";
+    t3 = std::chrono::high_resolution_clock::now(); //////////////////////////////////////////////////////// Timer 3 (data receive start)
     while(true) {
         while(contents.length() >= FragmentSize) {
             std::string chunk = contents.substr(0, FragmentSize);
@@ -273,6 +284,7 @@ int main(int argc, char* argv[]) {
         finalVerifiedData += chunk;
         if(UseVerbose) std::cout << "\tHash " << totalNumHashes << " successfully verified!" << std::endl;
     }
+    t4 = std::chrono::high_resolution_clock::now(); //////////////////////////////////////////////////////// Timer 4 (data receive end)
 
 
     if(UseVerbose) std::cout << "PROCESS 4: Interpret the data and verify signature" << std::endl;
@@ -313,18 +325,32 @@ int main(int argc, char* argv[]) {
 
 
     std::string message = domain + "," + receivedIP;
+
+    t5 = std::chrono::high_resolution_clock::now(); //////////////////////////////////////////////////////// Timer 5 (signature verification start)
     bool verified = verify_signature(algorithm, message, signature, public_key, public_key_length);
+    t6 = std::chrono::high_resolution_clock::now(); //////////////////////////////////////////////////////// Timer 6 (signature verification end)
 
     if(UseVerbose) if (verified) {
         std::cout << "Signature verification was successful!\n";
     } else {
         std::cout << "SIGNATURE VERIFICATION FAILED\n";
     }
+
+    std::chrono::duration<double> total_ms = std::chrono::duration_cast<std::chrono::duration<double>>(t6 - t1);
+    std::chrono::duration<double> hash_check_ms = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+    std::chrono::duration<double> data_check_ms = std::chrono::duration_cast<std::chrono::duration<double>>(t4 - t3);
+    std::chrono::duration<double> signature_check_ms = std::chrono::duration_cast<std::chrono::duration<double>>(t6 - t5);
+
     
     if(UseVerbose) {
-        std::cout << receivedIP << std::endl;
-    } else {
         std::cout << "\nFinal verified result: " << receivedIP << std::endl;
+    } else {
+        std::cout << "{";
+        std::cout << "\"total_ms\":" << (total_ms.count() * 1000) << ",";
+        std::cout << "\"hash_check_ms\":" << (hash_check_ms.count() * 1000) << ",";
+        std::cout << "\"data_check_ms\":" << (data_check_ms.count() * 1000) << ",";
+        std::cout << "\"signature_check_ms\":" << (signature_check_ms.count() * 1000);
+        std::cout << "}" << std::endl;
     }
     return 0;
 }

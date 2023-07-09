@@ -1,1 +1,1 @@
-SPHINCS+-SHA2-256s-simple
+secp224r1

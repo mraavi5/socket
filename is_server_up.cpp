@@ -5,19 +5,18 @@
 bool received_response = false;
 
 void handle_receive(const boost::system::error_code& error, std::size_t /*bytes_transferred*/,
-                    boost::asio::deadline_timer& timer)
+                    boost::asio::deadline_timer& timer, char* reply)
 {
     if (!error) {
-        std::cout << "Online";
+        std::cout << reply;
         received_response = true;
         timer.cancel();
     } else if (error == boost::asio::error::operation_aborted) {
-        // Don't output anything if operation was aborted because we received a response.
         if (!received_response) {
-            std::cout << "Offline";
+            std::cout << "OFFLINE"; // print "OFFLINE" instead of "Offline"
         }
     } else {
-        std::cout << "Offline";
+        std::cout << "OFFLINE"; // print "OFFLINE" instead of "Offline"
     }
 }
 
@@ -40,7 +39,7 @@ int main(int argc, char* argv[]) {
     std::string request = "?";
     socket.send_to(boost::asio::buffer(request), receiver_endpoint);
 
-    char reply[1];
+    char reply[64] = {0}; // increased size to hold larger words
     boost::asio::ip::udp::endpoint sender_endpoint;
 
     // Setup a deadline timer.
@@ -50,7 +49,7 @@ int main(int argc, char* argv[]) {
     // Start an asynchronous receive and pass in the handler.
     socket.async_receive_from(boost::asio::buffer(reply), sender_endpoint,
                               [&](const boost::system::error_code& ec, std::size_t bytes_transferred) {
-                                  handle_receive(ec, bytes_transferred, timer);
+                                  handle_receive(ec, bytes_transferred, timer, reply);
                               });
 
     // Start an asynchronous wait on the timer.

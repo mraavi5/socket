@@ -23,9 +23,4 @@ fi
 # "SPHINCS+-SHA2-256f-simple", "SPHINCS+-SHA2-256s-simple"
 
 
-./database_filler SPHINCS+-SHA2-256s-simple
-
-echo
-echo
-echo
-./pubkey_send.sh
+./database_filler SPHINCS+-SHA2-256f-simple

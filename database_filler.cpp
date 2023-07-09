@@ -32,7 +32,11 @@ bool is_algorithm_classical(const std::string& algorithm) {
 }
 
 // Generate a key pair, supported algorithms are as follows:
-//  "secp224r1", "secp256k1", "secp384r1", "secp521r1", "sect571r1", "rsa1024", "rsa2048", "rsa4096", "Dilithium2", "Dilithium3", "Dilithium5", "Falcon-512", "Falcon-1024"
+// "secp224r1", "secp256k1", "secp384r1", "secp521r1", "sect571r1",
+// "rsa1024", "rsa2048", "rsa4096", "Dilithium2", "Dilithium3", "Dilithium5",
+// "Falcon-512", "Falcon-1024", 
+// "SPHINCS+-SHA2-128f-simple", "SPHINCS+-SHA2-128s-simple",
+// "SPHINCS+-SHA2-256f-simple", "SPHINCS+-SHA2-256s-simple"
 std::tuple<uint8_t*, uint8_t*, size_t, size_t> generate_key(const std::string& algorithm, OQS_SIG* signer = NULL) {
     if (is_algorithm_classical(algorithm)) {
         EVP_PKEY *pkey = EVP_PKEY_new();
