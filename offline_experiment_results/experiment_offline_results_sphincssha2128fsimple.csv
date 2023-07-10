@@ -1,0 +1,6 @@
+Sample Number for SPHINCS+-SHA2-128f-simple,Number of Domains Added,Number of Fragments,Total Time to Fill Database (ms),Total Time for One Entry (ms),Key Generation (ms),Message Signing (ms),Message Verifying (ms),Time for Hash Step (ms),Time for Redis Step (ms),Public Key Length (B),Private Key Length (B),Avg Signature Length (B),
+1,10000,15,363249,34.4479,2.5118,30.4014,1.7511,0.0601157,3.98349,32,64,17088,
+2,1000,15,37566,35.5108,2.73202,32.6712,1.91933,0.0656185,2.77051,32,64,17088,
+3,100,15,3959.5,37.6082,2.95317,31.5972,1.82991,0.0637469,5.94349,32,64,17088,
+4,10,15,413.465,39.0596,2.53151,33.3797,1.88848,0.0656444,5.60946,32,64,17088,
+5,1,15,48.0112,43.0749,2.95444,36.9969,1.9043,0.072256,5.99618,32,64,17088,

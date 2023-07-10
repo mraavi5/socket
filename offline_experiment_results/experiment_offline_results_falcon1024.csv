@@ -1,0 +1,6 @@
+Sample Number for Falcon-1024,Number of Domains Added,Number of Fragments,Total Time to Fill Database (ms),Total Time for One Entry (ms),Key Generation (ms),Message Signing (ms),Message Verifying (ms),Time for Hash Step (ms),Time for Redis Step (ms),Public Key Length (B),Private Key Length (B),Avg Signature Length (B),
+1,10000,2,85795.3,8.39392,31.4039,8.14184,0.073696,0.010076,0.240767,1793,2305,1270.61,
+2,1000,2,9286,9.05389,35.8394,8.51044,0.0792242,0.0119604,0.5299,1793,2305,1270.62,
+3,100,2,1032.49,9.58926,45.7109,8.53177,0.0805207,0.0144241,1.04127,1793,2305,1271.04,
+4,10,2,139.741,9.77586,37.8199,8.33478,0.101305,0.0282275,1.41084,1793,2305,1269.9,
+5,1,2,39.6957,9.77171,28.1724,8.23123,0.080197,0.111359,1.42595,1793,2305,1273,

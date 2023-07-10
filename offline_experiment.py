@@ -6,7 +6,9 @@ import re
 import sys
 import time
 
-alexaFiles = ["alexa_top_100000.csv", "alexa_top_10000.csv", "alexa_top_1000.csv", "alexa_top_100.csv", "alexa_top_10.csv", "alexa_top_1.csv"]
+#alexaFiles = ["alexa_top_100000.csv", "alexa_top_10000.csv", "alexa_top_1000.csv", "alexa_top_100.csv", "alexa_top_10.csv", "alexa_top_1.csv"]
+alexaFiles = ["alexa_top_10000.csv", "alexa_top_1000.csv", "alexa_top_100.csv", "alexa_top_10.csv", "alexa_top_1.csv"]
+
 numSamplesPerAlgorithm = len(alexaFiles)
 
 algorithms = ["secp224r1", "secp256k1", "secp384r1", "secp521r1", "sect571r1", "rsa1024", "rsa2048", "rsa4096", "Dilithium2", "Dilithium3", "Dilithium5", "Falcon-512", "Falcon-1024", "SPHINCS+-SHA2-128f-simple", "SPHINCS+-SHA2-128s-simple", "SPHINCS+-SHA2-256f-simple", "SPHINCS+-SHA2-256s-simple"]
@@ -57,8 +59,9 @@ if __name__ == '__main__':
 			prevAlgorithm = algorithm
 			samplesForAlgorithm = 0
 		
-		print(f'Sample {samplesForAlgorithm + 1}, Using algorithm "{algorithm}"...')
-		result = terminal(f'./experiment_database_filler {algorithm} {alexaFiles[sampleNum % len(alexaFiles)]]}')
+		alexaFileName = alexaFiles[sampleNum % len(alexaFiles)]
+		print(f'Sample {samplesForAlgorithm + 1}, Using algorithm "{algorithm}", and "{alexaFileName}""...')
+		result = terminal(f'./experiment_database_filler {algorithm} {alexaFileName}')
 		num_fragments = ''
 		num_domains_added = ''
 		total_database_fill_ms = ''

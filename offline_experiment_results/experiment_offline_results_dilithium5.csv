@@ -1,0 +1,6 @@
+Sample Number for Dilithium5,Number of Domains Added,Number of Fragments,Total Time to Fill Database (ms),Total Time for One Entry (ms),Key Generation (ms),Message Signing (ms),Message Verifying (ms),Time for Hash Step (ms),Time for Redis Step (ms),Public Key Length (B),Private Key Length (B),Avg Signature Length (B),
+1,10000,4,20165.5,1.6617,1.63926,0.696897,0.228071,0.0209847,0.942819,2592,4864,4595,
+2,1000,4,1883.08,1.53639,1.54353,0.70556,0.225287,0.0213148,0.808502,2592,4864,4595,
+3,100,4,153.973,1.16682,1.59559,0.653183,0.215465,0.0204104,0.492221,2592,4864,4595,
+4,10,4,21.8073,1.53682,1.44118,0.627687,0.223601,0.0671484,0.841131,2592,4864,4595,
+5,1,4,8.88728,3.91499,1.73549,0.558391,0.228316,0.122246,3.23337,2592,4864,4595,

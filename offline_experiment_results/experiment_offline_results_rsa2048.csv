@@ -1,0 +1,6 @@
+Sample Number for rsa2048,Number of Domains Added,Number of Fragments,Total Time to Fill Database (ms),Total Time for One Entry (ms),Key Generation (ms),Message Signing (ms),Message Verifying (ms),Time for Hash Step (ms),Time for Redis Step (ms),Public Key Length (B),Private Key Length (B),Avg Signature Length (B),
+1,10000,1,19041.2,1.44359,114.593,1.26626,0.343007,0.00438195,0.171904,294,1192,256,
+2,1000,1,2482.14,1.72086,290.147,1.25648,0.357257,0.0045144,0.458811,294,1192,256,
+3,100,1,406.51,1.64703,186.544,1.28919,0.398416,0.00438238,0.352428,294,1193,256,
+4,10,1,188.893,1.97723,162.186,1.48509,0.442022,0.0048813,0.486052,294,1190,256,
+5,1,1,265.041,2.05004,260.905,1.55729,0.387277,0.00714,0.484303,294,1192,256,

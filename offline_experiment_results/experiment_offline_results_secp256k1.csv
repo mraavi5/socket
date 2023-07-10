@@ -1,2 +1,6 @@
 Sample Number for secp256k1,Number of Domains Added,Number of Fragments,Total Time to Fill Database (ms),Total Time for One Entry (ms),Key Generation (ms),Message Signing (ms),Message Verifying (ms),Time for Hash Step (ms),Time for Redis Step (ms),Public Key Length (B),Private Key Length (B),Avg Signature Length (B),
-1,990,1,1956.1,1.39019,127.25,1.26467,0.341204,0.0041305,0.120425,294,1192,256,
+1,10000,1,17690.6,1.31513,170.737,1.22768,0.32908,0.00407102,0.0824506,294,1190,256,
+2,1000,1,2226.78,1.68029,70.6518,1.28068,0.365139,0.00478755,0.393781,294,1191,256,
+3,100,1,339.774,1.33315,160.143,1.24065,0.337292,0.00424398,0.0873727,294,1193,256,
+4,10,1,156.663,1.80992,131.801,1.31838,0.415369,0.0049419,0.485429,294,1191,256,
+5,1,1,81.3302,2.01539,76.9568,1.47803,0.404111,0.004964,0.531371,294,1193,256,

@@ -1,0 +1,6 @@
+Sample Number for secp384r1,Number of Domains Added,Number of Fragments,Total Time to Fill Database (ms),Total Time for One Entry (ms),Key Generation (ms),Message Signing (ms),Message Verifying (ms),Time for Hash Step (ms),Time for Redis Step (ms),Public Key Length (B),Private Key Length (B),Avg Signature Length (B),
+1,10000,1,18119.6,1.35747,221.318,1.2228,0.330792,0.00397198,0.129796,294,1192,256,
+2,1000,1,2322.91,1.56154,303.706,1.25371,0.350203,0.00456856,0.302236,294,1191,256,
+3,100,1,624.8,1.72491,403.599,1.24696,0.36175,0.00450596,0.472462,294,1191,256,
+4,10,1,173.02,1.80026,148.664,1.26325,0.363351,0.0045159,0.531525,294,1190,256,
+5,1,1,67.4617,2.03125,63.1446,1.49633,0.38477,0.004861,0.528934,294,1192,256,
