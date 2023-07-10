@@ -1,4 +1,0 @@
-Sample Number for SPHINCS+-SHA2-128f-simple,Number of Fragments,Total Time to Fill Database (ms),Total Time for One Entry (ms),Key Generation (ms),Message Signing (ms),Time for Hash Step (ms),Time for Redis Step (ms),Public Key Length (B),Private Key Length (B),Avg Signature Length (B),
-1,15,11058.5,10.9986,2.09994,8.6418,0.0742761,2.27953,32,64,17088,
-2,15,10763,10.6975,2.39788,8.64894,0.0720521,1.97357,32,64,17088,
-3,15,10779.3,10.7178,2.1712,8.80824,0.0770007,1.82938,32,64,17088,

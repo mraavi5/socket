@@ -7,7 +7,7 @@ import sys
 import time
 
 
-numSamplesPerAlgorithm = 3
+numSamplesPerAlgorithm = 5
 
 algorithms = ["secp224r1", "secp256k1", "secp384r1", "secp521r1", "sect571r1", "rsa1024", "rsa2048", "rsa4096", "Dilithium2", "Dilithium3", "Dilithium5", "Falcon-512", "Falcon-1024", "SPHINCS+-SHA2-128f-simple", "SPHINCS+-SHA2-128s-simple", "SPHINCS+-SHA2-256f-simple", "SPHINCS+-SHA2-256s-simple"]
 
@@ -41,11 +41,13 @@ if __name__ == '__main__':
 			outputFileName = os.path.join(resultsDirectory, f'experiment_offline_results_{sanitizedAlgorithm}.csv')
 			outputFile = open(outputFileName, 'w')
 			line = f'Sample Number for {algorithm},'
+			line += 'Number of Domains Added,'
 			line += 'Number of Fragments,'
 			line += 'Total Time to Fill Database (ms),'
 			line += 'Total Time for One Entry (ms),'
 			line += 'Key Generation (ms),'
 			line += 'Message Signing (ms),'
+			line += 'Message Verifying (ms),'
 			line += 'Time for Hash Step (ms),'
 			line += 'Time for Redis Step (ms),'
 			line += 'Public Key Length (B),'
@@ -58,10 +60,12 @@ if __name__ == '__main__':
 		print(f'Sample {samplesForAlgorithm + 1}, Using algorithm "{algorithm}"...')
 		result = terminal(f'./experiment_database_filler {algorithm}')
 		num_fragments = ''
+		num_domains_added = ''
 		total_database_fill_ms = ''
 		total_entry_ms = ''
 		keygen_ms = ''
 		sign_step = ''
+		verify_step = ''
 		hash_step = ''
 		redis_step = ''
 		public_key_length = ''
@@ -70,10 +74,12 @@ if __name__ == '__main__':
 		try:
 			obj = json.loads(result)
 			num_fragments = obj['num_fragments']
+			num_domains_added = obj['num_domains_added']
 			total_database_fill_ms = obj['total_database_fill_ms']
 			total_entry_ms = obj['total_entry_ms']
 			keygen_ms = obj['keygen_ms']
 			sign_step = obj['sign_step']
+			verify_step = obj['verify_step']
 			hash_step = obj['hash_step']
 			redis_step = obj['redis_step']
 			public_key_length = obj['public_key_length']
@@ -85,11 +91,13 @@ if __name__ == '__main__':
 		sampleNum += 1
 		samplesForAlgorithm += 1
 		line = str(samplesForAlgorithm) + ','
+		line += str(num_domains_added) + ','
 		line += str(num_fragments) + ','
 		line += str(total_database_fill_ms) + ','
 		line += str(total_entry_ms) + ','
 		line += str(keygen_ms) + ','
 		line += str(sign_step) + ','
+		line += str(verify_step) + ','
 		line += str(hash_step) + ','
 		line += str(redis_step) + ','
 		line += str(public_key_length) + ','

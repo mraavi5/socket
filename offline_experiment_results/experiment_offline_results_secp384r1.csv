@@ -1,4 +1,0 @@
-Sample Number for secp384r1,Number of Fragments,Total Time to Fill Database (ms),Total Time for One Entry (ms),Key Generation (ms),Message Signing (ms),Time for Hash Step (ms),Time for Redis Step (ms),Public Key Length (B),Private Key Length (B),Avg Signature Length (B),
-1,1,2211.84,1.67194,401.638,1.45564,0.00608339,0.208769,294,1191,256,
-2,1,2035.48,1.67086,220.794,1.4667,0.00619005,0.196523,294,1191,256,
-3,1,1988.89,1.6762,169.659,1.4785,0.00645686,0.189631,294,1190,256,

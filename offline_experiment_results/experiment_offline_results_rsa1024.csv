@@ -1,4 +1,0 @@
-Sample Number for rsa1024,Number of Fragments,Total Time to Fill Database (ms),Total Time for One Entry (ms),Key Generation (ms),Message Signing (ms),Time for Hash Step (ms),Time for Redis Step (ms),Public Key Length (B),Private Key Length (B),Avg Signature Length (B),
-1,1,1123.26,0.956545,14.4797,0.72177,0.00542377,0.227576,162,608,128,
-2,1,1096.15,0.925853,23.22,0.70358,0.00507513,0.21588,162,608,128,
-3,1,1026.4,0.871521,12.2781,0.693103,0.00528093,0.17187,162,611,128,

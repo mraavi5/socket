@@ -1,4 +1,0 @@
-Sample Number for Falcon-512,Number of Fragments,Total Time to Fill Database (ms),Total Time for One Entry (ms),Key Generation (ms),Message Signing (ms),Time for Hash Step (ms),Time for Redis Step (ms),Public Key Length (B),Private Key Length (B),Avg Signature Length (B),
-1,1,622.824,0.466905,7.69632,0.277117,0.00809393,0.18083,897,1281,655.043,
-2,1,647.908,0.492264,8.53065,0.278208,0.00862965,0.204567,897,1281,655.042,
-3,1,560.665,0.404494,7.73277,0.277178,0.00835594,0.118024,897,1281,655.072,

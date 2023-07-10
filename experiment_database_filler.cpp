@@ -129,6 +129,44 @@ std::string sign_message(const std::string& algorithm, const std::string& messag
     }
 }
 
+// Verify a signature
+bool verify_signature(std::string algorithm, std::string message, std::string signature, uint8_t *public_key, size_t public_key_length) {
+    if (is_algorithm_classical(algorithm)) {
+        const EVP_MD* md;
+        EVP_MD_CTX* mdctx = EVP_MD_CTX_new();
+        EVP_PKEY_CTX* pctx = NULL;
+
+        const unsigned char * pkey_buffer = public_key;  // Using a non-const version for compatibility with old OpenSSL versions
+        EVP_PKEY* pkey = d2i_PUBKEY(NULL, &pkey_buffer, public_key_length);  // Pass -1 if length is not known
+        size_t signature_len = signature.size();
+        std::vector<uint8_t> signature_vec(signature.begin(), signature.end());
+
+        if (algorithm.find("rsa") != std::string::npos)
+            md = EVP_sha256(); // Set the digest method directly
+        else
+            md = EVP_get_digestbynid(EVP_PKEY_type(EVP_PKEY_id(pkey))); // Get the digest method based on key type
+
+        EVP_DigestVerifyInit(mdctx, &pctx, md, NULL, pkey);
+        EVP_DigestVerifyUpdate(mdctx, reinterpret_cast<const unsigned char*>(message.c_str()), message.size());
+
+        int verify_result = EVP_DigestVerifyFinal(mdctx, signature_vec.data(), signature_len);
+        
+        EVP_MD_CTX_free(mdctx);
+
+        return verify_result == 1;
+    } else {
+        OQS_SIG *sig = OQS_SIG_new(algorithm.c_str());
+        uint8_t *message_bytes = (uint8_t *)message.c_str();
+        size_t message_len = message.length();
+        uint8_t *signature_bytes = (uint8_t *)signature.c_str();
+        size_t signature_len = signature.length();
+        int verify_result = OQS_SIG_verify(sig, message_bytes, message_len, signature_bytes, signature_len, public_key);
+        OQS_SIG_free(sig);
+
+        return verify_result == OQS_SUCCESS;
+    }
+}
+
 // Function to calculate SHA256 hash of given data, string length=32
 std::string sha256(const std::string& data) {
     unsigned char hash[EVP_MAX_MD_SIZE];
@@ -169,7 +207,7 @@ void write_to_redis(const std::string& domain, int index, const std::string& dat
 }
 
 int main(int argc, char* argv[]) {
-    std::chrono::high_resolution_clock::time_point t1, t2, t3, t4, t5, t6, t7, t8;
+    std::chrono::high_resolution_clock::time_point t1, t2, t3, t4, t5, t6, t7, t8, t9, t10;
     if (argc < 2) {
         std::cerr << "Usage: " << argv[0] << " <algorithm>\n";
         return 1;
@@ -234,9 +272,10 @@ int main(int argc, char* argv[]) {
     std::getline(file, line);
 
     
-    int numEntriesCounter = 0;
+    int num_domains_added = 0;
     double total_entry_ms = 0;
     double sign_step = 0;
+    double verify_step = 0;
     double hash_step = 0;
     double redis_step = 0;
     double num_fragments = 0;
@@ -318,21 +357,28 @@ int main(int argc, char* argv[]) {
         }
 
 
-        numEntriesCounter++;
+        t9 = std::chrono::high_resolution_clock::now(); //////////////////////////////////////////////////////// Timer 9 (sign start)
+        verify_signature(algorithm, message, signature, public_key, public_key_length);
+        t10 = std::chrono::high_resolution_clock::now(); //////////////////////////////////////////////////////// Timer 10 (sign start)
+
+
+        num_domains_added++;
         total_entry_ms += std::chrono::duration<double, std::milli>(t8 - t3).count();
         sign_step += std::chrono::duration<double, std::milli>(t4 - t3).count();
+        verify_step += std::chrono::duration<double, std::milli>(t10 - t9).count();
         hash_step += std::chrono::duration<double, std::milli>(t6 - t5).count();
         redis_step += std::chrono::duration<double, std::milli>(t8 - t7).count();
         avg_signature_length += signature_length;
         //std::chrono::duration_cast<std::chrono::duration<double>>(t6 - t1);
     }
 
-    total_entry_ms /= numEntriesCounter;
-    sign_step /= numEntriesCounter;
-    hash_step /= numEntriesCounter;
-    redis_step /= numEntriesCounter;
-    num_fragments /= numEntriesCounter;
-    avg_signature_length /= numEntriesCounter;
+    total_entry_ms /= num_domains_added;
+    sign_step /= num_domains_added;
+    verify_step /= num_domains_added;
+    hash_step /= num_domains_added;
+    redis_step /= num_domains_added;
+    num_fragments /= num_domains_added;
+    avg_signature_length /= num_domains_added;
     
     // Cleanup
     if (is_algorithm_classical(algorithm)) {
@@ -359,11 +405,13 @@ int main(int argc, char* argv[]) {
         std::cout << "Done!\n";
     } else {
         std::cout << "{";
+        std::cout << "\"num_domains_added\":" << (num_domains_added) << ",";
         std::cout << "\"num_fragments\":" << (num_fragments) << ",";
         std::cout << "\"total_database_fill_ms\":" << (total_database_fill_ms) << ",";
         std::cout << "\"total_entry_ms\":" << (total_entry_ms) << ",";
         std::cout << "\"keygen_ms\":" << (keygen_ms) << ",";
         std::cout << "\"sign_step\":" << (sign_step) << ",";
+        std::cout << "\"verify_step\":" << (verify_step) << ",";
         std::cout << "\"hash_step\":" << (hash_step) << ",";
         std::cout << "\"redis_step\":" << (redis_step) << ",";
         std::cout << "\"public_key_length\":" << (public_key_length) << ",";
