@@ -26,19 +26,33 @@ data_sph256s = readmatrix('experiment_results/experiment_online_results_sphincss
 % 2 = Hash Check Duration (ms)
 % 3 = Data Check Duration (ms)
 % 4 = Signature Check Duration (ms)
-plotNum = 1
+plotNum = 4
+
+% Variables for x-axis limits
+xLimMin = NaN;
+xLimMax = NaN;
+xLimScalarMin = 1.1;
+xLimScalarMax = 1.05;
+isLogarithmic = 0
 
 if plotNum == 1
     labelName = 'Total Handshake Duration (ms)'
     column = 2
+    textPadding = 0.5;
 
 elseif plotNum == 2
     labelName = 'Hash Check Duration (ms)'
     column = 3
+    textPadding = 0.1;
+    xLimMin = NaN;
+    xLimMax = NaN;
+    xLimScalarMin = 1.1;
+    xLimScalarMax = 1.05;
 
 elseif plotNum == 3
     labelName = 'Data Check Duration (ms)'
     column = 4
+    isLogarithmic = 1
 
 elseif plotNum == 4
     labelName = 'Signature Check Duration (ms)'
@@ -65,6 +79,14 @@ avg_values = cellfun(@(x) mean(x(:, column)), data);
 % Compute confidence intervals
 ci_values = cellfun(@(x) getConfidenceInterval(x(:, column)), data);
 
+% Set minimum and maximum values based on confidence intervals if xLimMin and xLimMax are NaN
+if isnan(xLimMin)
+    xLimMin = min(avg_values - ci_values) / xLimScalarMin;
+end
+if isnan(xLimMax)
+    xLimMax = max(avg_values + ci_values) * xLimScalarMax;
+end
+
 % Create bar plot
 fig = figure;
 % Set the figure width and height
@@ -83,12 +105,15 @@ set(gca,'FontSize', fontSize)
 grid on;
 grid minor;
 set(gca, 'XMinorGrid', 'on', 'YMinorGrid', 'off');
-
-% Display value for each bar using the 'text' function
-padding = 0.5;
-for i = 1:length(algorithms)
-    text(avg_values(i) - ci_values(i) - padding, i, num2str(avg_values(i)), 'HorizontalAlignment', 'right', 'FontSize', textFontSize);
+xlim([xLimMin, xLimMax]);
+if isLogarithmic
+    set(gca, 'XScale', 'log')
 end
+
+% % Display value for each bar using the 'text' function
+% for i = 1:length(algorithms)
+%     text(avg_values(i) - ci_values(i) - textPadding, i, num2str(avg_values(i)), 'HorizontalAlignment', 'right', 'FontSize', textFontSize);
+% end
 
 % Plot confidence intervals
 for i = 1:length(algorithms)

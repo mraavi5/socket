@@ -11,6 +11,8 @@
 #include <sw/redis++/redis++.h>
 #include <vector>
 
+std::string alexa_file_name;  // Global variable
+
 const bool UseVerbose = false;     // Whether or not to print all the debugging messages
 const bool UseCRC = true;          // Control flag for using CRC
 const size_t MaxFrameSize = 1232;  // Max frame size in bytes
@@ -169,11 +171,13 @@ void write_to_redis(const std::string& domain, int index, const std::string& dat
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <algorithm>\n";
+        std::cerr << "Usage: " << argv[0] << " <algorithm> [alexa_file_name]\n";
         return 1;
     }
-
     std::string algorithm = argv[1];
+    // Set Alexa file name if provided
+    alexa_file_name = (argc >= 3) ? argv[2] : "alexa_top_1.csv";
+
     uint8_t *secret_key, *public_key;
     size_t public_key_length, secret_key_length;
     OQS_SIG* signer = NULL;
@@ -221,7 +225,7 @@ int main(int argc, char* argv[]) {
     redis.set("PUBLIC_KEY", std::string(reinterpret_cast<char*>(public_key), public_key_length));
     redis.set("PRIVATE_KEY", std::string(reinterpret_cast<char*>(secret_key), secret_key_length));
 
-    std::ifstream file("alexa_top_1000.csv");
+    std::ifstream file(alexa_file_name);
     std::string line;
 
     // Ignore header
